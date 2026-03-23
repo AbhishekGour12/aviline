@@ -18,7 +18,7 @@
   
   .mySwiper .swiper-button-prev,
   .mySwiper .swiper-button-next {
-    color: #d41d40;
+    color: #5A9E4E;
     background: white;
     width: 40px;
     height: 40px;
@@ -28,13 +28,13 @@
   
   .mySwiper .swiper-button-prev:after,
   .mySwiper .swiper-button-next:after {
-    font-size: 18px;
+    font-size: 15px;
     font-weight: bold;
   }
   
   .mySwiper .swiper-button-prev:hover,
   .mySwiper .swiper-button-next:hover {
-    background: #d41d40;
+    background: #2d5427;
     color: white;
   }
   
@@ -47,7 +47,7 @@
     
     .mySwiper .swiper-button-prev:after,
     .mySwiper .swiper-button-next:after {
-      font-size: 14px;
+      font-size: 10px;
     }
   }
   

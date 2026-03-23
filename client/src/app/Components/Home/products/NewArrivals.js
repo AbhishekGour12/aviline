@@ -31,14 +31,14 @@ const NewArrivals = () => {
       {/* Desktop Navigation Arrows */}
       <button 
         onClick={() => scroll('left')}
-        className="hidden lg:flex absolute left-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white/90 shadow-lg rounded-full items-center justify-center text-gray-800 hover:bg-[#d41d40] hover:text-white transition-all opacity-0 group-hover:opacity-100 border border-gray-100"
+        className="hidden lg:flex absolute left-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white/90 shadow-lg rounded-full items-center justify-center text-gray-800 hover:bg-[#4ccb35] hover:text-white transition-all opacity-0 group-hover:opacity-100 border border-gray-100"
       >
         <FaChevronLeft />
       </button>
 
       <button 
         onClick={() => scroll('right')}
-        className="hidden lg:flex absolute right-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white/90 shadow-lg rounded-full items-center justify-center text-gray-800 hover:bg-[#d41d40] hover:text-white transition-all opacity-0 group-hover:opacity-100 border border-gray-100"
+        className="hidden lg:flex absolute right-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white/90 shadow-lg rounded-full items-center justify-center text-gray-800 hover:bg-[#4ccb35] hover:text-white transition-all opacity-0 group-hover:opacity-100 border border-gray-100"
       >
         <FaChevronRight />
       </button>

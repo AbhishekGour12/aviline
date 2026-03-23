@@ -73,7 +73,7 @@ const HeroSection = () => {
           <ul className="flex items-center justify-between text-center">
             {categories.map((category) => (
               <li key={category.name} className="flex flex-col items-center">
-                <div className="w-15 h-15 relative rounded-full overflow-hidden border-2 border-[#d41d40]">
+                <div className="w-15 h-15 relative rounded-full overflow-hidden border-2 border-[#71bc63]">
                   <Image
                     src={category.image}
                     alt={category.name}

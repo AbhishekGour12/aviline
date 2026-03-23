@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaSearch, FaRegEdit, FaPencilAlt, FaCartPlus, FaUser, FaBars, FaTimes } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
-
+import {useRouter} from "next/navigation"
 const NAV_ITEMS = [
   { name: 'WOMEN', categories: { 
       'Western': ['Topwear', 'Dresses', 'Jeans', 'Skirts'],
@@ -29,6 +29,7 @@ const Navbar = () => {
   const [activeMobileTab, setActiveMobileTab] = useState(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const router = useRouter()
  useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
@@ -130,7 +131,7 @@ const Navbar = () => {
             {/* Hamburger Menu - Visible only on mobile/tablet */}
             <button
               onClick={() => setIsSidebarOpen(true)}
-              className="lg:hidden text-gray-700 hover:text-[#d41d40] transition-colors"
+              className="lg:hidden text-gray-700 hover:text-[#5A9E4E] transition-colors"
             >
               <FaBars className="text-2xl" />
             </button>
@@ -152,14 +153,14 @@ const Navbar = () => {
                   onMouseLeave={() => setActiveTab(null)}
                 >
                   <span className={`text-sm font-bold tracking-wide transition-colors duration-200 
-                    ${activeTab === item.name ? 'text-[#d41d40]' : 'text-gray-700'}`}>
+                    ${activeTab === item.name ? 'text-[#5A9E4E]' : 'text-gray-700'}`}>
                     {item.name}
                   </span>
                   
                   {activeTab === item.name && (
                     <motion.div 
                       layoutId="underline"
-                      className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#d41d40]"
+                      className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#5A9E4E]"
                     />
                   )}
                 </div>
@@ -186,7 +187,7 @@ const Navbar = () => {
               <FaCartPlus className="text-xl text-black" />
               <span className="text-[10px] font-medium mt-1 uppercase text-black hidden sm:block">Cart</span>
               {/* Optional: Cart Badge */}
-              <span className="absolute -top-2 -right-2 bg-[#d41d40] text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+              <span className="absolute -top-2 -right-2 bg-[#6dd85a] text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
                 0
               </span>
             </div>
@@ -204,7 +205,7 @@ const Navbar = () => {
               <span className="text-[10px] font-medium mt-1 uppercase text-black hidden sm:block">Profile</span>
               
               {isProfileOpen && (
-                <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#d41d40]" />
+                <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#5A9E4E]" />
               )}
 
               {/* Profile Dropdown Modal */}
@@ -220,7 +221,8 @@ const Navbar = () => {
                     <div className="p-5 border-b border-gray-100">
                       <p className="text-[13px] font-bold text-gray-800">WELCOME!</p>
                       <p className="text-[12px] text-gray-500 mt-1">To view account details</p>
-                      <button className="mt-4 bg-[#cc4d4d] text-white text-[12px] font-bold py-2 px-6 rounded-sm uppercase tracking-wider hover:bg-[#b33a3a] transition-colors">
+                      <button className="mt-4 bg-[#1A4D3E]   text-white  hover:cursor-pointer text-[12px] font-bold py-2 px-6 rounded-sm uppercase tracking-wider  transition-colors hover:bg-[#1A4D3E] bg-[#8BC34A]> " onClick={() => {router.push("/Login")}} >
+                    
                         Login
                       </button>
                     </div>
@@ -262,7 +264,7 @@ const Navbar = () => {
               <div className="max-w-[1400px] mx-auto px-6 grid grid-cols-5 gap-8">
                 {Object.entries(NAV_ITEMS.find(i => i.name === activeTab).categories).map(([title, links]) => (
                   <div key={title} className="flex flex-col">
-                    <h3 className="text-[#d41d40] font-bold text-sm mb-4 uppercase">
+                    <h3 className="text-[#5a9a4f] font-bold text-sm mb-4 uppercase">
                       {title}
                     </h3>
                     <ul className="space-y-2">
@@ -363,7 +365,7 @@ const Navbar = () => {
               {/* Profile Section in Sidebar */}
               <div className="mt-6 pt-4 border-t border-gray-200">
                 <div className="space-y-3">
-                  <button className="w-full bg-[#cc4d4d] text-white text-sm font-bold py-2.5 rounded-md uppercase tracking-wider hover:bg-[#b33a3a] transition-colors">
+                  <button className="w-full  bg-[#8BC34A] text-white text-sm font-bold py-2.5 rounded-md uppercase tracking-wider hover:bg-[#5A9E4E] transition-colors ">
                     Login
                   </button>
                   
