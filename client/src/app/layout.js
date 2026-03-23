@@ -23,7 +23,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
 
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#eeee]`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gradient-to-br from-[#F0F7E6] to-[#E0EBD0]`}
       >
        <ClientLayout>
         {children}

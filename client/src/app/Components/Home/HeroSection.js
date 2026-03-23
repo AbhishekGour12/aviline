@@ -11,6 +11,10 @@ import 'swiper/css/navigation';
 const categories = [
   { name: 'SAREES', image: '/saree.png' },
   { name: 'ETHNIC SETS', image: '/ethnic.png' },
+   { name: 'SAREES', image: '/saree.png' },
+  { name: 'ETHNIC SETS', image: '/ethnic.png' },
+   { name: 'SAREES', image: '/saree.png' },
+  { name: 'ETHNIC SETS', image: '/ethnic.png' },
   // ... add other categories
 ];
 
