@@ -221,11 +221,11 @@ const Footer = () => {
               </p>
             </div>
             <div>
-              <form className="flex gap-2">
+              <form className="flex gap-2 flex-wrap w-full ">
                 <input
                   type="email"
                   placeholder="Enter your email"
-                  className="flex-1 px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-white placeholder:text-[#B8D9C5] focus:outline-none focus:ring-2 focus:ring-[#8BC34A]"
+                  className=" px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-white placeholder:text-[#B8D9C5] focus:outline-none focus:ring-2 focus:ring-[#8BC34A]"
                 />
                 <button
                   type="submit"
