@@ -73,25 +73,32 @@ const HeroSection = () => {
     <div className="mt-16  ">
       {/* 1. Top Category Section */}
       <div className="border-b border-gray-200">
-        <div className="max-w-[1100px] mx-auto px-4 py-6">
-          <ul className="flex items-center justify-between text-center">
-            {categories.map((category) => (
-              <li key={category.name} className="flex flex-col items-center">
-                <div className="w-15 h-15 relative rounded-full overflow-hidden border-2 border-[#71bc63]">
-                  <Image
-                    src={category.image}
-                    alt={category.name}
-                    layout="fill"
-                    objectFit="cover"
-                  />
-                </div>
-                <span className="text-[12px] font-semibold mt-2 text-gray-800 uppercase tracking-tighter">
-                  {category.name}
-                </span>
-              </li>
-            ))}
-          </ul>
+       <div className="max-w-[1100px] mx-auto px-4 py-6">
+  {/* Added flex-nowrap and hide-scrollbar logic */}
+  <ul className="flex items-center justify-start md:justify-between gap-6 overflow-x-auto flex-nowrap no-scrollbar pb-2">
+    {categories.map((category) => (
+      <li 
+        key={category.name} 
+        className="flex flex-col items-center flex-shrink-0 min-w-[80px]"
+      >
+        {/* Changed w-15/h-15 to standard Tailwind w-16/h-16 (64px) for consistency */}
+        <div className="w-16 h-16 relative rounded-full overflow-hidden border-2 border-[#71bc63] shadow-sm transition-transform hover:scale-105">
+          <Image
+            src={category.image}
+            alt={category.name}
+            fill
+            className="object-cover"
+          />
         </div>
+        <span className="text-[11px] md:text-[12px] font-bold mt-2 text-gray-800 uppercase tracking-tighter whitespace-nowrap">
+          {category.name}
+        </span>
+      </li>
+    ))}
+  </ul>
+</div>
+
+
       </div>
 
     {/* 2. Swiper Slider Section */}

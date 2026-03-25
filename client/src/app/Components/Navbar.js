@@ -1,8 +1,12 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { FaSearch, FaRegEdit, FaPencilAlt, FaCartPlus, FaUser, FaBars, FaTimes } from 'react-icons/fa';
+import { FaSearch, FaRegEdit, FaPencilAlt, FaCartPlus, FaUser, FaBars, FaTimes, FaSignOutAlt, FaUserCircle, FaHeart, FaClipboardList } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
-import {useRouter} from "next/navigation"
+import { useRouter } from "next/navigation";
+import { useSelector, useDispatch } from 'react-redux';
+import Image from 'next/image';
+import { logoutSuccess } from '../store/features/authSlice';
+
 const NAV_ITEMS = [
   { name: 'WOMEN', categories: { 
       'Western': ['Topwear', 'Dresses', 'Jeans', 'Skirts'],
@@ -29,8 +33,43 @@ const Navbar = () => {
   const [activeMobileTab, setActiveMobileTab] = useState(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const router = useRouter()
- useEffect(() => {
+  const router = useRouter();
+  const dispatch = useDispatch();
+  
+  // Get user data from Redux store
+  const { user, isAuthenticated, token } = useSelector((state) => state.auth);
+  
+  // Get username or email for display
+  const getUserDisplayName = () => {
+    if (!user) return "Hi!";
+    
+    if (user.name) return user.name;
+    if (user.username) return user.username;
+    if (user.firstName && user.lastName) return `${user.firstName} ${user.lastName}`;
+    if (user.email) return user.email.split('@')[0];
+    return "Hi!";
+  };
+  
+  const getInitials = () => {
+    const name = getUserDisplayName();
+    if (name === "Hi!") return "H";
+    return name.charAt(0).toUpperCase();
+  };
+
+  // Handle logout
+  const handleLogout = () => {
+    // Dispatch logout action
+    dispatch(logoutSuccess());
+    // Clear any stored tokens
+    localStorage.removeItem('token');
+    
+    // Close profile dropdown
+    setIsProfileOpen(false);
+    // Redirect to home page
+    router.push('/');
+  };
+
+  useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
     };
@@ -38,7 +77,7 @@ const Navbar = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-   useEffect(() => {
+  useEffect(() => {
     if (isSidebarOpen) {
       document.body.style.overflow = "hidden";
     } else {
@@ -48,9 +87,10 @@ const Navbar = () => {
       document.body.style.overflow = "unset";
     };
   }, [isSidebarOpen]);
+
   return (
     <>
-    {/* 1. FULL SCREEN SEARCH OVERLAY */}
+      {/* 1. FULL SCREEN SEARCH OVERLAY */}
       <AnimatePresence>
         {isSearchOpen && (
           <motion.div
@@ -71,9 +111,9 @@ const Navbar = () => {
                 </button>
 
                 {/* Search Input Container */}
-                <div className="flex-1 flex items-center border border-green-500 rounded-lg overflow-hidden h-[45px] shadow-sm">
-                  <div className="px-4  h-full flex justify-center items-center hover:cursor-pointer " style={{boxShadow: " rgba(99, 99, 99, 0.2) 0px 2px 8px 0px"}}>
-                    <FaSearch className="text-gray-400" />
+                <div className="flex-1 flex items-center border border-[#8BC34A] rounded-lg overflow-hidden h-[45px] shadow-sm">
+                  <div className="px-4 h-full flex justify-center items-center bg-gray-50">
+                    <FaSearch className="text-[#8BC34A]" />
                   </div>
                   <input 
                     autoFocus
@@ -98,6 +138,7 @@ const Navbar = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      
       {/* Background Overlay (Modal effect) */}
       <AnimatePresence>
         {(isProfileOpen || activeTab) && (
@@ -123,7 +164,9 @@ const Navbar = () => {
         )}
       </AnimatePresence>
 
-      <nav className="w-full fixed top-0 bg-white border-b border-gray-200 z-[60] shadow-md ">
+      <nav className={`w-full fixed top-0 bg-white border-b border-gray-200 z-[60] transition-shadow duration-300 ${
+        isScrolled ? 'shadow-lg' : 'shadow-md'
+      }`}>
         <div className="max-w-[1460px] mx-auto px-4 flex items-center justify-between h-[60px]">
           
           {/* Left Side: Logo and Hamburger Menu */}
@@ -131,12 +174,15 @@ const Navbar = () => {
             {/* Hamburger Menu - Visible only on mobile/tablet */}
             <button
               onClick={() => setIsSidebarOpen(true)}
-              className="lg:hidden text-gray-700 hover:text-[#5A9E4E] transition-colors"
+              className="lg:hidden text-gray-700 hover:text-[#8BC34A] transition-colors"
             >
               <FaBars className="text-2xl" />
             </button>
 
-            <div className="logo flex text-2xl font-bold font-serif tracking-wide hover:cursor-pointer">
+            <div 
+              className="logo flex text-2xl font-bold font-serif tracking-wide hover:cursor-pointer"
+              onClick={() => router.push('/')}
+            >
               AVILINE
             </div>
 
@@ -153,14 +199,14 @@ const Navbar = () => {
                   onMouseLeave={() => setActiveTab(null)}
                 >
                   <span className={`text-sm font-bold tracking-wide transition-colors duration-200 
-                    ${activeTab === item.name ? 'text-[#5A9E4E]' : 'text-gray-700'}`}>
+                    ${activeTab === item.name ? 'text-[#8BC34A]' : 'text-gray-700'}`}>
                     {item.name}
                   </span>
                   
                   {activeTab === item.name && (
                     <motion.div 
                       layoutId="underline"
-                      className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#5A9E4E]"
+                      className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#8BC34A]"
                     />
                   )}
                 </div>
@@ -176,18 +222,14 @@ const Navbar = () => {
               <span className="text-[10px] font-medium mt-1 uppercase text-black hidden md:block">Search</span>
             </div>
             
-            {/* Scrapbook Icon - Hide on tablets */}
-            <div className="hidden md:flex flex-col items-center cursor-pointer hover:text-black transition-colors">
-              <FaPencilAlt className="text-xl text-black" />
-              <span className="text-[10px] font-medium mt-1 uppercase text-black">Scrapbook</span>
-            </div>
+           
             
             {/* Cart Icon - Always visible */}
             <div className="flex flex-col items-center cursor-pointer hover:text-black transition-colors relative">
               <FaCartPlus className="text-xl text-black" />
               <span className="text-[10px] font-medium mt-1 uppercase text-black hidden sm:block">Cart</span>
               {/* Optional: Cart Badge */}
-              <span className="absolute -top-2 -right-2 bg-[#6dd85a] text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+              <span className="absolute -top-2 -right-2 bg-[#8BC34A] text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
                 0
               </span>
             </div>
@@ -201,48 +243,139 @@ const Navbar = () => {
               }}
               onMouseLeave={() => setIsProfileOpen(false)}
             >
-              <FaUser className="text-xl text-black" />
-              <span className="text-[10px] font-medium mt-1 uppercase text-black hidden sm:block">Profile</span>
+              {/* User Avatar/Icon with Name */}
+              <div className="flex-col  items-center gap-2">
+                
+                  <FaUser className="text-xl text-black  w-full" />
+                
+                <span className="text-[10px] mt-1 flex justify-center w-full font-medium uppercase text-black hidden md:block">
+                  {isAuthenticated ? getUserDisplayName() : "Profile"}
+                </span>
+              </div>
+              <span className="text-[10px] font-medium mt-2 uppercase text-black hidden sm:block md:hidden">
+                {isAuthenticated ? "Profile" : "Account"}
+              </span>
               
               {isProfileOpen && (
-                <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#5A9E4E]" />
+                <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#8BC34A]" />
               )}
 
               {/* Profile Dropdown Modal */}
               <AnimatePresence>
                 {isProfileOpen && (
                   <motion.div
-                    initial={{ opacity: 0, y: 0 }}
+                    initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    className="z-60 absolute top-[60px] right-0 w-[280px] bg-white shadow-2xl border border-gray-200 text-left overflow-hidden cursor-default"
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute top-[60px] right-0 w-[300px] bg-white shadow-2xl border border-gray-200 text-left overflow-hidden cursor-default rounded-lg"
                     onMouseEnter={() => setIsProfileOpen(true)}
+                    onMouseLeave={() => setIsProfileOpen(false)}
                   >
-                    <div className="p-5 border-b border-gray-100">
-                      <p className="text-[13px] font-bold text-gray-800">WELCOME!</p>
-                      <p className="text-[12px] text-gray-500 mt-1">To view account details</p>
-                      <button className="mt-4 bg-[#1A4D3E]   text-white  hover:cursor-pointer text-[12px] font-bold py-2 px-6 rounded-sm uppercase tracking-wider  transition-colors hover:bg-[#1A4D3E] bg-[#8BC34A]> " onClick={() => {router.push("/Login")}} >
-                    
-                        Login
-                      </button>
-                    </div>
+                    {isAuthenticated ? (
+                      <>
+                        {/* User Info Section */}
+                        <div className="p-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                          <div className="flex items-center gap-3">
+                            {user?.avatar ? (
+                              <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-[#8BC34A]">
+                                <Image
+                                  src={user.avatar}
+                                  alt={getUserDisplayName()}
+                                  fill
+                                  className="object-cover"
+                                />
+                              </div>
+                            ) : (
+                              <div className="w-12 h-12 rounded-full bg-gradient-to-r from-[#8BC34A] to-[#5A9E4E] flex items-center justify-center text-white font-bold text-xl">
+                                {getInitials()}
+                              </div>
+                            )}
+                            <div>
+                              <p className="text-sm font-bold text-gray-800">{getUserDisplayName()}</p>
+                              {user?.phone && (
+                                <p className="text-xs text-gray-500">{user.phone.slice(3, 13)}</p>
+                              )}
+                              <p className="text-xs text-[#8BC34A] font-medium mt-1">
+                                {user?.membership || "Standard Member"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
 
-                    <div className="p-5 space-y-3 border-b border-gray-100">
-                      <p className="text-[12px] font-semibold text-gray-600 cursor-pointer hover:text-black uppercase transition-colors">Orders</p>
-                      <p className="text-[12px] font-semibold text-gray-600 cursor-pointer hover:text-black uppercase transition-colors">Return Replacement</p>
-                      <p className="text-[12px] font-semibold text-gray-600 cursor-pointer hover:text-black uppercase transition-colors">Lr Credits</p>
-                    </div>
+                        {/* Account Links */}
+                        <div className="p-4 space-y-2">
+                          <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+                            <FaUserCircle className="text-gray-400 text-lg" />
+                            <span className="text-sm text-gray-700">My Account</span>
+                          </div>
+                          <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+                            <FaClipboardList className="text-gray-400 text-lg" />
+                            <span className="text-sm text-gray-700">My Orders</span>
+                          </div>
+                          <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+                            <FaHeart className="text-gray-400 text-lg" />
+                            <span className="text-sm text-gray-700">Wishlist</span>
+                          </div>
+                        </div>
 
-                    <div className="p-5 space-y-3">
-                      <p className="text-[12px] font-semibold text-gray-600 cursor-pointer hover:text-black uppercase transition-colors">Customer Support</p>
-                      <p className="text-[12px] font-semibold text-gray-600 cursor-pointer hover:text-black uppercase transition-colors">Faq & Help</p>
-                      
-                      <div className="pt-2">
-                        <button className="bg-gray-600 hover:bg-gray-700 transition-colors text-white text-[11px] px-3 py-1 rounded-full font-medium">
-                          हिन्दी
-                        </button>
-                      </div>
-                    </div>
+                        {/* Logout Button */}
+                        <div className="p-4 border-t border-gray-100">
+                          <button
+                            onClick={handleLogout}
+                            className="w-full bg-red-50 hover:bg-red-100 text-red-600 text-sm font-semibold py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                          >
+                            <FaSignOutAlt className="text-sm" />
+                            Logout
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {/* Not Logged In Section */}
+                        <div className="p-5 border-b border-gray-100">
+                          <p className="text-sm font-bold text-gray-800">WELCOME!</p>
+                          <p className="text-xs text-gray-500 mt-1">To view account details</p>
+                          <button 
+                            className="mt-4 bg-[#8BC34A] hover:bg-[#5A9E4E] text-white text-xs font-bold py-2 px-6 rounded-sm uppercase tracking-wider transition-colors w-full"
+                            onClick={() => {
+                              setIsProfileOpen(false);
+                              router.push("/Login");
+                            }}
+                          >
+                            Login
+                          </button>
+                          
+                        </div>
+
+                        <div className="p-4 space-y-3">
+                          <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-black uppercase transition-colors">
+                            Orders
+                          </p>
+                          <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-black uppercase transition-colors">
+                            Return Replacement
+                          </p>
+                          <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-black uppercase transition-colors">
+                            Lr Credits
+                          </p>
+                        </div>
+
+                        <div className="p-4 space-y-3 border-t border-gray-100">
+                          <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-black uppercase transition-colors">
+                            Customer Support
+                          </p>
+                          <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-black uppercase transition-colors">
+                            Faq & Help
+                          </p>
+                          
+                          <div className="pt-2">
+                            <button className="bg-gray-600 hover:bg-gray-700 transition-colors text-white text-xs px-3 py-1 rounded-full font-medium">
+                              हिन्दी
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -254,9 +387,9 @@ const Navbar = () => {
         <AnimatePresence>
           {activeTab && NAV_ITEMS.find(i => i.name === activeTab)?.categories && (
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
               onMouseEnter={() => setActiveTab(activeTab)}
               onMouseLeave={() => setActiveTab(null)}
               className="absolute top-[60px] left-0 w-full bg-white shadow-xl border-t border-gray-100 py-8 z-[55] hidden lg:block"
@@ -264,12 +397,12 @@ const Navbar = () => {
               <div className="max-w-[1400px] mx-auto px-6 grid grid-cols-5 gap-8">
                 {Object.entries(NAV_ITEMS.find(i => i.name === activeTab).categories).map(([title, links]) => (
                   <div key={title} className="flex flex-col">
-                    <h3 className="text-[#5a9a4f] font-bold text-sm mb-4 uppercase">
+                    <h3 className="text-[#8BC34A] font-bold text-sm mb-4 uppercase">
                       {title}
                     </h3>
                     <ul className="space-y-2">
                       {links.map((link) => (
-                        <li key={link} className="text-gray-600 text-[13px] hover:text-black cursor-pointer">
+                        <li key={link} className="text-gray-600 text-[13px] hover:text-[#8BC34A] cursor-pointer transition-colors">
                           {link}
                         </li>
                       ))}
@@ -280,7 +413,6 @@ const Navbar = () => {
             </motion.div>
           )}
         </AnimatePresence>
-         
       </nav>
 
       {/* Mobile Sidebar */}
@@ -298,10 +430,50 @@ const Navbar = () => {
               <span className="text-xl font-bold font-serif">AVILINE</span>
               <button
                 onClick={() => setIsSidebarOpen(false)}
-                className="text-gray-600 hover:text-[#d41d40] transition-colors"
+                className="text-gray-600 hover:text-[#8BC34A] transition-colors"
               >
                 <FaTimes className="text-2xl" />
               </button>
+            </div>
+
+            {/* User Profile Section in Sidebar */}
+            <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+              {isAuthenticated ? (
+                <div className="flex items-center gap-3">
+                  {user?.avatar ? (
+                    <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-[#8BC34A]">
+                      <Image
+                        src={user.avatar}
+                        alt={getUserDisplayName()}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-[#8BC34A] to-[#5A9E4E] flex items-center justify-center text-white font-bold text-lg">
+                      {getInitials()}
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-sm font-bold text-gray-800">{getUserDisplayName()}</p>
+                    <p className="text-xs text-gray-500">{user?.phone || "Member"}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <p className="text-sm font-bold text-gray-800">Welcome!</p>
+                  <p className="text-xs text-gray-500">Login to access your account</p>
+                  <button 
+                    className="mt-3 bg-[#8BC34A] hover:bg-[#5A9E4E] text-white text-xs font-bold py-2 px-4 rounded-md w-full transition-colors"
+                    onClick={() => {
+                      setIsSidebarOpen(false);
+                      router.push("/Login");
+                    }}
+                  >
+                    Login / Sign Up
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Sidebar Content */}
@@ -344,12 +516,12 @@ const Navbar = () => {
                       >
                         {Object.entries(item.categories).map(([title, links]) => (
                           <div key={title} className="space-y-2">
-                            <h3 className="text-[#d41d40] font-semibold text-xs uppercase mt-2">
+                            <h3 className="text-[#8BC34A] font-semibold text-xs uppercase mt-2">
                               {title}
                             </h3>
                             <ul className="space-y-1.5">
                               {links.map((link) => (
-                                <li key={link} className="text-gray-600 text-xs hover:text-[#d41d40] cursor-pointer">
+                                <li key={link} className="text-gray-600 text-xs hover:text-[#8BC34A] cursor-pointer">
                                   {link}
                                 </li>
                               ))}
@@ -362,39 +534,54 @@ const Navbar = () => {
                 ))}
               </div>
 
-              {/* Profile Section in Sidebar */}
-              <div className="mt-6 pt-4 border-t border-gray-200">
-                <div className="space-y-3">
-                  <button className="w-full  bg-[#8BC34A] text-white text-sm font-bold py-2.5 rounded-md uppercase tracking-wider hover:bg-[#5A9E4E] transition-colors ">
-                    Login
-                  </button>
-                  
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-black uppercase">Orders</p>
-                    <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-black uppercase">Return Replacement</p>
-                    <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-black uppercase">Lr Credits</p>
-                    <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-black uppercase">Customer Support</p>
-                    <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-black uppercase">Faq & Help</p>
-                  </div>
-                  
-                  <div className="pt-2">
-                    <button className="bg-gray-600 hover:bg-gray-700 transition-colors text-white text-xs px-3 py-1.5 rounded-full font-medium">
-                      हिन्दी
+              {/* Profile Section in Sidebar for Authenticated Users */}
+              {isAuthenticated && (
+                <div className="mt-6 pt-4 border-t border-gray-200">
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#8BC34A] uppercase transition-colors">
+                        My Account
+                      </p>
+                      <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#8BC34A] uppercase transition-colors">
+                        My Orders
+                      </p>
+                      <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#8BC34A] uppercase transition-colors">
+                        Wishlist
+                      </p>
+                      <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#8BC34A] uppercase transition-colors">
+                        Return Replacement
+                      </p>
+                      <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#8BC34A] uppercase transition-colors">
+                        Lr Credits
+                      </p>
+                      <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#8BC34A] uppercase transition-colors">
+                        Customer Support
+                      </p>
+                      <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#8BC34A] uppercase transition-colors">
+                        Faq & Help
+                      </p>
+                    </div>
+                    
+                    <button 
+                      onClick={handleLogout}
+                      className="w-full bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold py-2.5 rounded-md flex items-center justify-center gap-2 transition-colors"
+                    >
+                      <FaSignOutAlt className="text-xs" />
+                      Logout
                     </button>
+                    
+                    <div className="pt-2">
+                      <button className="bg-gray-600 hover:bg-gray-700 transition-colors text-white text-xs px-3 py-1.5 rounded-full font-medium">
+                        हिन्दी
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-     
-
-          
-
-        
-
-      
     </>
   );
 };

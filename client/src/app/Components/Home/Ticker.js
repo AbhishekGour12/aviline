@@ -6,7 +6,7 @@ import {  FaShoppingBag, FaBoxOpen, FaStar } from 'react-icons/fa';
 const TickerItem = ({ icon: Icon, text }) => (
   <div className="flex items-center gap-2 px-12 max-sm:px-3 shrink-0">
     <Icon className="text-xl text-gray-600 max-sm:text-sm" />
-    <span className="text-sm max-sm:text-[10px] font-thin tracking-[0.2em] uppercase text-gray-500 whitespace-nowrap">
+    <span className="text-sm max-sm:text-[10px] font-thin max-sm:font-normal tracking-[0.2em] uppercase text-gray-500 whitespace-nowrap">
       {text}
     </span>
   </div>

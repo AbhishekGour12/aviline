@@ -6,6 +6,9 @@ import { Phone, ShoppingBag, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import { authAPI } from "../lib/auth";
+import { useDispatch } from "react-redux";
+import { loginSuccess } from "../store/features/authSlice";
 
 // --- E-Commerce Green Theme ---
 const LoginPage = () => {
@@ -18,8 +21,49 @@ const LoginPage = () => {
   const [otp, setOtp] = useState("");
   const [timer, setTimer] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  
+  const [phoneError, setPhoneError] = useState("");
+  const [isPhoneValid, setIsPhoneValid] = useState(false);
+
   const router = useRouter();
+  const dispatch = useDispatch();
+
+// Enhanced validation function
+const validatePhoneNumber = (phone, code) => {
+  // Check if empty
+  if (!phone || phone.trim() === "") {
+    setPhoneError("");
+    setIsPhoneValid(false);
+    return false;
+  }
+  
+  // Check length
+  if (phone.length !== 10) {
+    setPhoneError("Phone number must be 10 digits");
+    setIsPhoneValid(false);
+    return false;
+  }
+  
+  // Check if all digits
+  if (!/^\d+$/.test(phone)) {
+    setPhoneError("Only digits allowed");
+    setIsPhoneValid(false);
+    return false;
+  }
+  
+  // Indian number validation
+  if (code === "+91") {
+    const firstDigit = phone.charAt(0);
+    if (!['6', '7', '8', '9'].includes(firstDigit)) {
+      setPhoneError("Indian numbers must start with 6-9");
+      setIsPhoneValid(false);
+      return false;
+    }
+  }
+  
+  setPhoneError("");
+  setIsPhoneValid(true);
+  return true;
+};
 
   // Format phone number
   const formatPhoneNumber = (value) => {
@@ -29,30 +73,42 @@ const LoginPage = () => {
   };
 
   const handlePhoneChange = (e) => {
-    const formatted = formatPhoneNumber(e.target.value);
-    setFormData({ ...formData, phone: formatted });
-  };
+  let value = e.target.value;
+  let cleaned = value.replace(/\D/g, "");
+  
+  if (cleaned.length > 10) {
+    cleaned = cleaned.slice(0, 10);
+  }
+  
+  setFormData({ ...formData, phone: cleaned });
+  
+  // Validate in real-time
+  validatePhoneNumber(cleaned, countryCode);
+};
 
   // Send OTP
   const handleSendOtp = async () => {
-    if (!formData.phone || formData.phone.length !== 10) {
-      toast.error("Please enter a valid 10-digit phone number");
-      return;
-    }
+    if (!validatePhoneNumber(formData.phone, countryCode)) {
+    toast.error(phoneError || "Please enter a valid phone number");
+    return;
+  }
+
 
     const fullPhone = `${countryCode}${formData.phone}`;
 
     try {
       setIsLoading(true);
-      // Simulate API call - Replace with actual API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Call the actual API endpoint
+      const response = await authAPI.requestotp(fullPhone);
       
       console.log("OTP sent to:", fullPhone);
       
       toast.success("OTP sent successfully!");
       setOtpSent(true);
-      setTimer(120);
+      setTimer(120); // 2 minutes timer
 
+      // Start countdown timer
       const interval = setInterval(() => {
         setTimer((prev) => {
           if (prev <= 1) {
@@ -62,9 +118,10 @@ const LoginPage = () => {
           return prev - 1;
         });
       }, 1000);
+      
     } catch (err) {
       console.error(err);
-      toast.error("Failed to send OTP. Please try again.");
+      toast.error(err.message || "Failed to send OTP. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -72,7 +129,7 @@ const LoginPage = () => {
 
   // Resend OTP
   const handleResendOtp = () => {
-    setOtp("");
+    setOtp(""); // Clear OTP field
     handleSendOtp();
   };
 
@@ -96,27 +153,40 @@ const LoginPage = () => {
 
     try {
       setIsLoading(true);
-      // Simulate API call - Replace with actual API
-      await new Promise(resolve => setTimeout(resolve, 1500));
       
       const fullPhone = `${countryCode}${formData.phone}`;
-      console.log("Login with:", fullPhone, "OTP:", otp);
       
-      toast.success("Login successful!");
+      // Prepare login data
+      const userData = {
+        phone: fullPhone,
+        otp: otp,
+      };
+
+      // Call login API
+      const response = await authAPI.login(userData);
+
+      if (response) {
+        toast.success(response.message || "Login successful!");
+        
+        // Store token and user data
+        localStorage.setItem("token", response.token);
+        
+        // Dispatch to Redux store if using Redux
+        dispatch(loginSuccess(response.data));
+        
+        // Redirect to home page
+        router.push("/");
+      }
       
-      // Store token and user data (mock)
-      localStorage.setItem("token", "mock-token-123");
-      localStorage.setItem("user", JSON.stringify({ phone: fullPhone }));
-      
-      router.push("/");
     } catch (err) {
-      toast.error("Login failed. Please try again.");
+      console.error("Login error:", err);
+      toast.error(err.message || "Login failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Format time
+  // Format time (MM:SS)
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -137,13 +207,13 @@ const LoginPage = () => {
             <div className="mb-8">
               <div className="flex items-center justify-center gap-3 mb-4">
                 <ShoppingBag className="w-12 h-12 text-[#8BC34A]" />
-                <h1 className="text-4xl font-bold  tracking-tight ">AVILINE</h1>
+                <h1 className="text-4xl font-bold tracking-tight">AVILINE</h1>
               </div>
               <p className="text-sm text-[#B8D9C5] tracking-wide">Sustainable Fashion</p>
             </div>
 
             <div className="w-full flex justify-center mb-8">
-              <div className="relative w-full  h-64">
+              <div className="relative w-full h-64">
                 <Image
                   src="/login.png"
                   alt="Fashion Model"
@@ -186,30 +256,36 @@ const LoginPage = () => {
                   <select
                     value={countryCode}
                     onChange={(e) => setCountryCode(e.target.value)}
-                    className="w-28 max-sm:w-fit  px-3 py-3 rounded-xl border max-sm:text-xs max-sm:px-1 border-[#D0E0C0] bg-[#F5F9F0] text-[#1A4D3E] font-medium focus:outline-none focus:ring-2 focus:ring-[#8BC34A]"
+                    className="w-28 max-sm:w-fit px-3 py-3 rounded-xl border max-sm:text-xs max-sm:px-1 border-[#D0E0C0] bg-[#F5F9F0] text-[#1A4D3E] font-medium focus:outline-none focus:ring-2 focus:ring-[#8BC34A]"
                   >
                     <option value="+91">🇮🇳 +91</option>
-                    <option value="+1">🇺🇸 +1</option>
-                    <option value="+44">🇬🇧 +44</option>
-                    <option value="+61">🇦🇺 +61</option>
-                    <option value="+971">🇦🇪 +971</option>
-                    <option value="+65">🇸🇬 +65</option>
-                    <option value="+81">🇯🇵 +81</option>
-                    <option value="+49">🇩🇪 +49</option>
+                    
                   </select>
 
-                  <div className="relative flex-1">
-                    <input
-                      type="tel"
-                      name="phone"
-                      placeholder="10-digit mobile number"
-                      value={formData.phone}
-                      onChange={handlePhoneChange}
-                      maxLength={10}
-                      className="w-full px-5 py-3 rounded-xl border border-[#D0E0C0] bg-[#F5F9F0] text-[#1A4D3E] placeholder:text-[#8A9B6E] focus:outline-none focus:ring-2 focus:ring-[#8BC34A] transition-all  max-sm:placeholder:text-transparent "
-                    />
-                    <Phone className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#8A9B6E]" />
-                  </div>
+                 <div className="relative flex-1">
+  <input
+    type="tel"
+    name="phone"
+    placeholder="10-digit mobile number"
+    value={formData.phone}
+    onChange={handlePhoneChange}
+    maxLength={10}
+    className={`w-full px-5 py-3 rounded-xl border ${
+      phoneError && formData.phone.length > 0
+        ? "border-red-500 bg-red-50"
+        : isPhoneValid && formData.phone.length === 10
+        ? "border-green-500 bg-green-50"
+        : "border-[#D0E0C0] bg-[#F5F9F0]"
+    } text-[#1A4D3E] placeholder:text-[#8A9B6E] focus:outline-none focus:ring-2 focus:ring-[#8BC34A] transition-all max-sm:placeholder:text-transparent`}
+  />
+  <Phone className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#8A9B6E]" />
+  {phoneError && formData.phone.length > 0 && (
+    <p className="text-xs text-red-500 mt-1 ml-2">{phoneError}</p>
+  )}
+  {isPhoneValid && formData.phone.length === 10 && !phoneError && (
+    <p className="text-xs text-green-500 mt-1 ml-2">✓ Valid phone number</p>
+  )}
+</div>
                 </div>
               </div>
 
@@ -263,8 +339,9 @@ const LoginPage = () => {
                       type="button"
                       onClick={handleResendOtp}
                       className="w-full text-center text-sm text-[#8BC34A] hover:text-[#5A9E4E] font-semibold"
+                      disabled={isLoading}
                     >
-                      Resend OTP
+                      {isLoading ? "Sending..." : "Resend OTP"}
                     </button>
                   )}
                 </div>
@@ -273,7 +350,7 @@ const LoginPage = () => {
               {/* Login Button */}
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || (otpSent && (!otp || otp.length !== 6))}
                 onMouseEnter={() => setHover(true)}
                 onMouseLeave={() => setHover(false)}
                 className={`w-full py-3.5 text-lg font-semibold rounded-xl transition-all duration-300 flex items-center justify-center gap-2 ${
