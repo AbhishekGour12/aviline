@@ -58,14 +58,9 @@ const Navbar = () => {
 
   // Handle logout
   const handleLogout = () => {
-    // Dispatch logout action
     dispatch(logoutSuccess());
-    // Clear any stored tokens
     localStorage.removeItem('token');
-    
-    // Close profile dropdown
     setIsProfileOpen(false);
-    // Redirect to home page
     router.push('/');
   };
 
@@ -102,7 +97,6 @@ const Navbar = () => {
             {/* White Search Header */}
             <div className="bg-white w-full p-4 shadow-lg">
               <div className="max-w-[1460px] mx-auto flex items-center gap-4">
-                {/* Close/Back Button */}
                 <button 
                   onClick={() => setIsSearchOpen(false)}
                   className="p-2 hover:bg-gray-100 rounded-full transition-colors"
@@ -110,10 +104,9 @@ const Navbar = () => {
                   <FaTimes className="text-xl text-gray-600" />
                 </button>
 
-                {/* Search Input Container */}
-                <div className="flex-1 flex items-center border border-[#8BC34A] rounded-lg overflow-hidden h-[45px] shadow-sm">
-                  <div className="px-4 h-full flex justify-center items-center bg-gray-50">
-                    <FaSearch className="text-[#8BC34A]" />
+                <div className="flex-1 flex items-center border border-[#777E5C] rounded-lg overflow-hidden h-[45px] shadow-sm">
+                  <div className="px-4 h-full flex justify-center items-center bg-[#F0F7E6]">
+                    <FaSearch className="text-[#777E5C]" />
                   </div>
                   <input 
                     autoFocus
@@ -124,13 +117,11 @@ const Navbar = () => {
                 </div>
               </div>
               
-              {/* Help Text */}
-              <div className="max-w-[1460px] mx-auto mt-3 px-14 text-xs text-gray-500 font-medium">
+              <div className="max-w-[1460px] mx-auto mt-3 px-14 text-xs text-[#777E5C] font-medium">
                 Enter 3 or more characters
               </div>
             </div>
 
-            {/* Clickable area to close search */}
             <div 
               className="flex-1 w-full cursor-pointer" 
               onClick={() => setIsSearchOpen(false)} 
@@ -139,14 +130,14 @@ const Navbar = () => {
         )}
       </AnimatePresence>
       
-      {/* Background Overlay (Modal effect) */}
+      {/* Background Overlay */}
       <AnimatePresence>
         {(isProfileOpen || activeTab) && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-[rgba(40,44,63,0.55)] z-40 mt-[60px] pointer-events-none"
+            className="fixed inset-0 bg-[rgba(119,126,92,0.25)] z-40 mt-[60px] pointer-events-none"
           />
         )}
       </AnimatePresence>
@@ -164,29 +155,28 @@ const Navbar = () => {
         )}
       </AnimatePresence>
 
-      <nav className={`w-full fixed top-0 bg-white border-b border-gray-200 z-[60] transition-shadow duration-300 ${
-        isScrolled ? 'shadow-lg' : 'shadow-md'
+      <nav className={`w-full fixed top-0 bg-white border-b transition-shadow duration-300 z-[60] ${
+        isScrolled ? 'shadow-lg border-[#DFE0DC]' : 'shadow-md border-[#E0EBD0]'
       }`}>
         <div className="max-w-[1460px] mx-auto px-4 flex items-center justify-between h-[60px]">
           
           {/* Left Side: Logo and Hamburger Menu */}
           <div className="flex items-center gap-4">
-            {/* Hamburger Menu - Visible only on mobile/tablet */}
             <button
               onClick={() => setIsSidebarOpen(true)}
-              className="lg:hidden text-gray-700 hover:text-[#8BC34A] transition-colors"
+              className="lg:hidden text-[#777E5C] hover:text-[#5A6E4A] transition-colors"
             >
               <FaBars className="text-2xl" />
             </button>
 
             <div 
-              className="logo flex text-2xl font-bold font-serif tracking-wide hover:cursor-pointer"
+              className="logo flex text-2xl font-bold font-serif tracking-wide hover:cursor-pointer text-[#777E5C]"
               onClick={() => router.push('/')}
             >
               AVILINE
             </div>
 
-            {/* Desktop Navigation Links - Hidden on mobile/tablet */}
+            {/* Desktop Navigation Links */}
             <div className="hidden lg:flex items-center justify-between space-x-8 ml-12 gap-3">
               {NAV_ITEMS.map((item) => (
                 <div
@@ -199,14 +189,14 @@ const Navbar = () => {
                   onMouseLeave={() => setActiveTab(null)}
                 >
                   <span className={`text-sm font-bold tracking-wide transition-colors duration-200 
-                    ${activeTab === item.name ? 'text-[#8BC34A]' : 'text-gray-700'}`}>
+                    ${activeTab === item.name ? 'text-[#777E5C]' : 'text-gray-700 hover:text-[#777E5C]'}`}>
                     {item.name}
                   </span>
                   
                   {activeTab === item.name && (
                     <motion.div 
                       layoutId="underline"
-                      className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#8BC34A]"
+                      className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#777E5C]"
                     />
                   )}
                 </div>
@@ -216,48 +206,42 @@ const Navbar = () => {
 
           {/* Right Side: Tools */}
           <div className="flex items-center gap-6 md:gap-9 text-gray-500">
-            {/* Search Icon - Hide on very small screens */}
-            <div className="hidden sm:flex flex-col items-center cursor-pointer hover:text-black transition-colors" onClick={() => setIsSearchOpen(true)}>
-              <FaSearch className="text-xl text-black" />
-              <span className="text-[10px] font-medium mt-1 uppercase text-black hidden md:block">Search</span>
+            {/* Search Icon */}
+            <div className="hidden sm:flex flex-col items-center cursor-pointer transition-colors group" onClick={() => setIsSearchOpen(true)}>
+              <FaSearch className="text-xl text-[#777E5C] group-hover:text-[#5A6E4A]" />
+              <span className="text-[10px] font-medium mt-1 uppercase text-[#777E5C] hidden md:block group-hover:text-[#5A6E4A]">Search</span>
             </div>
             
-           
-            
-            {/* Cart Icon - Always visible */}
-            <div className="flex flex-col items-center cursor-pointer hover:text-black transition-colors relative">
-              <FaCartPlus className="text-xl text-black" />
-              <span className="text-[10px] font-medium mt-1 uppercase text-black hidden sm:block">Cart</span>
-              {/* Optional: Cart Badge */}
-              <span className="absolute -top-2 -right-2 bg-[#8BC34A] text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+            {/* Cart Icon */}
+            <div className="flex flex-col items-center cursor-pointer transition-colors group relative">
+              <FaCartPlus className="text-xl text-[#777E5C] group-hover:text-[#5A6E4A]" />
+              <span className="text-[10px] font-medium mt-1 uppercase text-[#777E5C] hidden sm:block group-hover:text-[#5A6E4A]">Cart</span>
+              <span className="absolute -top-2 -right-2 bg-[#D1D88D] text-[#777E5C] text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold">
                 0
               </span>
             </div>
             
             {/* Profile Dropdown */}
             <div 
-              className="relative flex flex-col items-center h-full justify-center cursor-pointer hover:text-black transition-colors group"
+              className="relative flex flex-col items-center h-full justify-center cursor-pointer transition-colors group"
               onMouseEnter={() => {
                 setIsProfileOpen(true);
                 setActiveTab(null);
               }}
               onMouseLeave={() => setIsProfileOpen(false)}
             >
-              {/* User Avatar/Icon with Name */}
-              <div className="flex-col  items-center gap-2">
-                
-                  <FaUser className="text-xl text-black  w-full" />
-                
-                <span className="text-[10px] mt-1 flex justify-center w-full font-medium uppercase text-black hidden md:block">
+              <div className="flex-col items-center gap-2">
+                <FaUser className="text-xl text-[#777E5C] group-hover:text-[#5A6E4A] w-full" />
+                <span className="text-[10px] mt-1 flex justify-center w-full font-medium uppercase text-[#777E5C] hidden md:block group-hover:text-[#5A6E4A]">
                   {isAuthenticated ? getUserDisplayName() : "Profile"}
                 </span>
               </div>
-              <span className="text-[10px] font-medium mt-2 uppercase text-black hidden sm:block md:hidden">
+              <span className="text-[10px] font-medium mt-2 uppercase text-[#777E5C] hidden sm:block md:hidden">
                 {isAuthenticated ? "Profile" : "Account"}
               </span>
               
               {isProfileOpen && (
-                <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#8BC34A]" />
+                <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#777E5C]" />
               )}
 
               {/* Profile Dropdown Modal */}
@@ -268,17 +252,17 @@ const Navbar = () => {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.2 }}
-                    className="absolute top-[60px] right-0 w-[300px] bg-white shadow-2xl border border-gray-200 text-left overflow-hidden cursor-default rounded-lg"
+                    className="absolute top-[60px] right-0 w-[300px] bg-white shadow-2xl border border-[#DFE0DC] text-left overflow-hidden cursor-default rounded-lg"
                     onMouseEnter={() => setIsProfileOpen(true)}
                     onMouseLeave={() => setIsProfileOpen(false)}
                   >
                     {isAuthenticated ? (
                       <>
                         {/* User Info Section */}
-                        <div className="p-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                        <div className="p-5 border-b border-[#DFE0DC] bg-gradient-to-r from-[#F0F7E6] to-white">
                           <div className="flex items-center gap-3">
                             {user?.avatar ? (
-                              <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-[#8BC34A]">
+                              <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-[#777E5C]">
                                 <Image
                                   src={user.avatar}
                                   alt={getUserDisplayName()}
@@ -287,7 +271,7 @@ const Navbar = () => {
                                 />
                               </div>
                             ) : (
-                              <div className="w-12 h-12 rounded-full bg-gradient-to-r from-[#8BC34A] to-[#5A9E4E] flex items-center justify-center text-white font-bold text-xl">
+                              <div className="w-12 h-12 rounded-full bg-gradient-to-r from-[#777E5C] to-[#8A9B6E] flex items-center justify-center text-white font-bold text-xl">
                                 {getInitials()}
                               </div>
                             )}
@@ -296,7 +280,7 @@ const Navbar = () => {
                               {user?.phone && (
                                 <p className="text-xs text-gray-500">{user.phone.slice(3, 13)}</p>
                               )}
-                              <p className="text-xs text-[#8BC34A] font-medium mt-1">
+                              <p className="text-xs text-[#777E5C] font-medium mt-1">
                                 {user?.membership || "Standard Member"}
                               </p>
                             </div>
@@ -305,25 +289,25 @@ const Navbar = () => {
 
                         {/* Account Links */}
                         <div className="p-4 space-y-2">
-                          <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
-                            <FaUserCircle className="text-gray-400 text-lg" />
-                            <span className="text-sm text-gray-700">My Account</span>
+                          <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-[#F0F7E6] transition-colors cursor-pointer group">
+                            <FaUserCircle className="text-[#777E5C] text-lg group-hover:text-[#5A6E4A]" />
+                            <span className="text-sm text-gray-700 group-hover:text-[#777E5C]">My Account</span>
                           </div>
-                          <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
-                            <FaClipboardList className="text-gray-400 text-lg" />
-                            <span className="text-sm text-gray-700">My Orders</span>
+                          <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-[#F0F7E6] transition-colors cursor-pointer group">
+                            <FaClipboardList className="text-[#777E5C] text-lg group-hover:text-[#5A6E4A]" />
+                            <span className="text-sm text-gray-700 group-hover:text-[#777E5C]">My Orders</span>
                           </div>
-                          <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
-                            <FaHeart className="text-gray-400 text-lg" />
-                            <span className="text-sm text-gray-700">Wishlist</span>
+                          <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-[#F0F7E6] transition-colors cursor-pointer group">
+                            <FaHeart className="text-[#777E5C] text-lg group-hover:text-[#5A6E4A]" />
+                            <span className="text-sm text-gray-700 group-hover:text-[#777E5C]">Wishlist</span>
                           </div>
                         </div>
 
                         {/* Logout Button */}
-                        <div className="p-4 border-t border-gray-100">
+                        <div className="p-4 border-t border-[#DFE0DC]">
                           <button
                             onClick={handleLogout}
-                            className="w-full bg-red-50 hover:bg-red-100 text-red-600 text-sm font-semibold py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                            className="w-full bg-[#F0F7E6] hover:bg-[#E0EBD0] text-[#777E5C] text-sm font-semibold py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors"
                           >
                             <FaSignOutAlt className="text-sm" />
                             Logout
@@ -333,11 +317,11 @@ const Navbar = () => {
                     ) : (
                       <>
                         {/* Not Logged In Section */}
-                        <div className="p-5 border-b border-gray-100">
+                        <div className="p-5 border-b border-[#DFE0DC]">
                           <p className="text-sm font-bold text-gray-800">WELCOME!</p>
                           <p className="text-xs text-gray-500 mt-1">To view account details</p>
                           <button 
-                            className="mt-4 bg-[#8BC34A] hover:bg-[#5A9E4E] text-white text-xs font-bold py-2 px-6 rounded-sm uppercase tracking-wider transition-colors w-full"
+                            className="mt-4 bg-[#777E5C] hover:bg-[#5A6E4A] text-white text-xs font-bold py-2 px-6 rounded-sm uppercase tracking-wider transition-colors w-full"
                             onClick={() => {
                               setIsProfileOpen(false);
                               router.push("/Login");
@@ -349,27 +333,27 @@ const Navbar = () => {
                         </div>
 
                         <div className="p-4 space-y-3">
-                          <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-black uppercase transition-colors">
+                          <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#777E5C] uppercase transition-colors">
                             Orders
                           </p>
-                          <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-black uppercase transition-colors">
+                          <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#777E5C] uppercase transition-colors">
                             Return Replacement
                           </p>
-                          <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-black uppercase transition-colors">
+                          <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#777E5C] uppercase transition-colors">
                             Lr Credits
                           </p>
                         </div>
 
-                        <div className="p-4 space-y-3 border-t border-gray-100">
-                          <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-black uppercase transition-colors">
+                        <div className="p-4 space-y-3 border-t border-[#DFE0DC]">
+                          <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#777E5C] uppercase transition-colors">
                             Customer Support
                           </p>
-                          <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-black uppercase transition-colors">
+                          <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#777E5C] uppercase transition-colors">
                             Faq & Help
                           </p>
                           
                           <div className="pt-2">
-                            <button className="bg-gray-600 hover:bg-gray-700 transition-colors text-white text-xs px-3 py-1 rounded-full font-medium">
+                            <button className="bg-[#777E5C] hover:bg-[#5A6E4A] transition-colors text-white text-xs px-3 py-1 rounded-full font-medium">
                               हिन्दी
                             </button>
                           </div>
@@ -392,17 +376,17 @@ const Navbar = () => {
               exit={{ opacity: 0, y: -10 }}
               onMouseEnter={() => setActiveTab(activeTab)}
               onMouseLeave={() => setActiveTab(null)}
-              className="absolute top-[60px] left-0 w-full bg-white shadow-xl border-t border-gray-100 py-8 z-[55] hidden lg:block"
+              className="absolute top-[60px] left-0 w-full bg-white shadow-xl border-t border-[#DFE0DC] py-8 z-[55] hidden lg:block"
             >
               <div className="max-w-[1400px] mx-auto px-6 grid grid-cols-5 gap-8">
                 {Object.entries(NAV_ITEMS.find(i => i.name === activeTab).categories).map(([title, links]) => (
                   <div key={title} className="flex flex-col">
-                    <h3 className="text-[#8BC34A] font-bold text-sm mb-4 uppercase">
+                    <h3 className="text-[#777E5C] font-bold text-sm mb-4 uppercase">
                       {title}
                     </h3>
                     <ul className="space-y-2">
                       {links.map((link) => (
-                        <li key={link} className="text-gray-600 text-[13px] hover:text-[#8BC34A] cursor-pointer transition-colors">
+                        <li key={link} className="text-gray-600 text-[13px] hover:text-[#777E5C] cursor-pointer transition-colors">
                           {link}
                         </li>
                       ))}
@@ -426,22 +410,22 @@ const Navbar = () => {
             className="fixed top-0 left-0 w-[280px] h-full bg-white z-[80] shadow-2xl lg:hidden overflow-y-auto"
           >
             {/* Sidebar Header */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <span className="text-xl font-bold font-serif">AVILINE</span>
+            <div className="flex items-center justify-between p-4 border-b border-[#DFE0DC]">
+              <span className="text-xl font-bold font-serif text-[#777E5C]">AVILINE</span>
               <button
                 onClick={() => setIsSidebarOpen(false)}
-                className="text-gray-600 hover:text-[#8BC34A] transition-colors"
+                className="text-[#777E5C] hover:text-[#5A6E4A] transition-colors"
               >
                 <FaTimes className="text-2xl" />
               </button>
             </div>
 
             {/* User Profile Section in Sidebar */}
-            <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+            <div className="p-4 border-b border-[#DFE0DC] bg-gradient-to-r from-[#F0F7E6] to-white">
               {isAuthenticated ? (
                 <div className="flex items-center gap-3">
                   {user?.avatar ? (
-                    <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-[#8BC34A]">
+                    <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-[#777E5C]">
                       <Image
                         src={user.avatar}
                         alt={getUserDisplayName()}
@@ -450,7 +434,7 @@ const Navbar = () => {
                       />
                     </div>
                   ) : (
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-[#8BC34A] to-[#5A9E4E] flex items-center justify-center text-white font-bold text-lg">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-[#777E5C] to-[#8A9B6E] flex items-center justify-center text-white font-bold text-lg">
                       {getInitials()}
                     </div>
                   )}
@@ -464,7 +448,7 @@ const Navbar = () => {
                   <p className="text-sm font-bold text-gray-800">Welcome!</p>
                   <p className="text-xs text-gray-500">Login to access your account</p>
                   <button 
-                    className="mt-3 bg-[#8BC34A] hover:bg-[#5A9E4E] text-white text-xs font-bold py-2 px-4 rounded-md w-full transition-colors"
+                    className="mt-3 bg-[#777E5C] hover:bg-[#5A6E4A] text-white text-xs font-bold py-2 px-4 rounded-md w-full transition-colors"
                     onClick={() => {
                       setIsSidebarOpen(false);
                       router.push("/Login");
@@ -480,8 +464,8 @@ const Navbar = () => {
             <div className="p-4">
               {/* Search Bar for Mobile */}
               <div className="mb-6">
-                <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2">
-                  <FaSearch className="text-gray-400 mr-2" />
+                <div className="flex items-center border border-[#DFE0DC] rounded-lg px-3 py-2 focus-within:border-[#777E5C] focus-within:ring-1 focus-within:ring-[#777E5C] transition-all">
+                  <FaSearch className="text-[#777E5C] mr-2" />
                   <input
                     type="text"
                     placeholder="Search products..."
@@ -493,14 +477,14 @@ const Navbar = () => {
               {/* Navigation Items */}
               <div className="space-y-2">
                 {NAV_ITEMS.map((item) => (
-                  <div key={item.name} className="border-b border-gray-100">
+                  <div key={item.name} className="border-b border-[#DFE0DC]">
                     <button
                       onClick={() => setActiveMobileTab(activeMobileTab === item.name ? null : item.name)}
                       className="flex items-center justify-between w-full py-3 text-left"
                     >
-                      <span className="text-sm font-semibold text-gray-800">{item.name}</span>
+                      <span className="text-sm font-semibold text-gray-800 hover:text-[#777E5C]">{item.name}</span>
                       {item.categories && (
-                        <span className="text-gray-400 text-lg">
+                        <span className="text-[#777E5C] text-lg">
                           {activeMobileTab === item.name ? '−' : '+'}
                         </span>
                       )}
@@ -516,12 +500,12 @@ const Navbar = () => {
                       >
                         {Object.entries(item.categories).map(([title, links]) => (
                           <div key={title} className="space-y-2">
-                            <h3 className="text-[#8BC34A] font-semibold text-xs uppercase mt-2">
+                            <h3 className="text-[#777E5C] font-semibold text-xs uppercase mt-2">
                               {title}
                             </h3>
                             <ul className="space-y-1.5">
                               {links.map((link) => (
-                                <li key={link} className="text-gray-600 text-xs hover:text-[#8BC34A] cursor-pointer">
+                                <li key={link} className="text-gray-600 text-xs hover:text-[#777E5C] cursor-pointer">
                                   {link}
                                 </li>
                               ))}
@@ -536,42 +520,42 @@ const Navbar = () => {
 
               {/* Profile Section in Sidebar for Authenticated Users */}
               {isAuthenticated && (
-                <div className="mt-6 pt-4 border-t border-gray-200">
+                <div className="mt-6 pt-4 border-t border-[#DFE0DC]">
                   <div className="space-y-3">
                     <div className="space-y-2">
-                      <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#8BC34A] uppercase transition-colors">
+                      <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#777E5C] uppercase transition-colors">
                         My Account
                       </p>
-                      <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#8BC34A] uppercase transition-colors">
+                      <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#777E5C] uppercase transition-colors">
                         My Orders
                       </p>
-                      <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#8BC34A] uppercase transition-colors">
+                      <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#777E5C] uppercase transition-colors">
                         Wishlist
                       </p>
-                      <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#8BC34A] uppercase transition-colors">
+                      <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#777E5C] uppercase transition-colors">
                         Return Replacement
                       </p>
-                      <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#8BC34A] uppercase transition-colors">
+                      <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#777E5C] uppercase transition-colors">
                         Lr Credits
                       </p>
-                      <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#8BC34A] uppercase transition-colors">
+                      <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#777E5C] uppercase transition-colors">
                         Customer Support
                       </p>
-                      <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#8BC34A] uppercase transition-colors">
+                      <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#777E5C] uppercase transition-colors">
                         Faq & Help
                       </p>
                     </div>
                     
                     <button 
                       onClick={handleLogout}
-                      className="w-full bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold py-2.5 rounded-md flex items-center justify-center gap-2 transition-colors"
+                      className="w-full bg-[#F0F7E6] hover:bg-[#E0EBD0] text-[#777E5C] text-xs font-semibold py-2.5 rounded-md flex items-center justify-center gap-2 transition-colors"
                     >
                       <FaSignOutAlt className="text-xs" />
                       Logout
                     </button>
                     
                     <div className="pt-2">
-                      <button className="bg-gray-600 hover:bg-gray-700 transition-colors text-white text-xs px-3 py-1.5 rounded-full font-medium">
+                      <button className="bg-[#777E5C] hover:bg-[#5A6E4A] transition-colors text-white text-xs px-3 py-1.5 rounded-full font-medium">
                         हिन्दी
                       </button>
                     </div>

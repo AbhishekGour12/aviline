@@ -9,12 +9,12 @@ import 'swiper/css/navigation';
 
 // Sample data for categories and slider
 const categories = [
-  { name: 'SAREES', image: '/saree.png' },
-  { name: 'ETHNIC SETS', image: '/ethnic.png' },
-   { name: 'SAREES', image: '/saree.png' },
-  { name: 'ETHNIC SETS', image: '/ethnic.png' },
-   { name: 'SAREES', image: '/saree.png' },
-  { name: 'ETHNIC SETS', image: '/ethnic.png' },
+  {id: 1, name: 'SAREES', image: '/saree.png' },
+  {id: 2, name: 'ETHNIC SETS', image: '/ethnic.png' },
+   {id: 3, name: 'SAREES', image: '/saree.png' },
+  {id: 4, name: 'ETHNIC SETS', image: '/ethnic.png' },
+   {id: 5, name: 'SAREES', image: '/saree.png' },
+  {id: 6, name: 'ETHNIC SETS', image: '/ethnic.png' },
   // ... add other categories
 ];
 
@@ -78,11 +78,11 @@ const HeroSection = () => {
   <ul className="flex items-center justify-start md:justify-between gap-6 overflow-x-auto flex-nowrap no-scrollbar pb-2">
     {categories.map((category) => (
       <li 
-        key={category.name} 
+        key={category.id} 
         className="flex flex-col items-center flex-shrink-0 min-w-[80px]"
       >
         {/* Changed w-15/h-15 to standard Tailwind w-16/h-16 (64px) for consistency */}
-        <div className="w-16 h-16 relative rounded-full overflow-hidden border-2 border-[#71bc63] shadow-sm transition-transform hover:scale-105">
+        <div className="w-16 h-16 relative rounded-full overflow-hidden border-2 border-[#777E5C] shadow-sm transition-transform hover:scale-105">
           <Image
             src={category.image}
             alt={category.name}

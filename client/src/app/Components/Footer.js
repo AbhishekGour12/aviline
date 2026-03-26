@@ -52,12 +52,12 @@ const Footer = () => {
       { name: 'Size Guide', href: '/size-guide' },
     ],
     company: [
-      { name: 'About Us', href: '/about' },
-      { name: 'Contact Us', href: '/contact' },
+      { name: 'About Us', href: '/About' },
+      { name: 'Contact Us', href: '/Contact' },
       { name: 'Blog', href: '/blog' },
       { name: 'Careers', href: '/careers' },
-      { name: 'Privacy Policy', href: '/privacy' },
-      { name: 'Terms & Conditions', href: '/terms' },
+      { name: 'Privacy Policy', href: '/PrivacyPolicy' },
+      { name: 'Terms & Conditions', href: '/TermsConditions' },
     ],
   };
 
@@ -80,12 +80,12 @@ const Footer = () => {
   ];
 
   return (
-    <footer className="bg-gradient-to-b from-[#1A4D3E] to-[#0F3A2E] text-white">
+    <footer className="bg-[#777E5C] text-white">
       {/* Scroll to Top Button */}
       <div className="relative">
         <button
           onClick={scrollToTop}
-          className="absolute -top-5 left-1/2 transform -translate-x-1/2 bg-[#8BC34A] hover:bg-[#5A9E4E] text-white p-3 rounded-full shadow-lg transition-all duration-300 hover:scale-110"
+          className="absolute -top-5 left-1/2 transform -translate-x-1/2 bg-[#DFE0DC] hover:bg-[#D1D88D] text-[#777E5C] p-3 rounded-full shadow-lg transition-all duration-300 hover:scale-110 hover:shadow-xl"
           aria-label="Scroll to top"
         >
           <FaArrowUp className="text-sm" />
@@ -98,10 +98,10 @@ const Footer = () => {
           {/* Brand Section */}
           <div className="lg:col-span-1">
             <div className="mb-4">
-              <h2 className="text-2xl font-bold  font-serif">AVILINE</h2>
-              <p className="text-sm text-[#B8D9C5] mt-1">Sustainable Fashion</p>
+              <h2 className="text-2xl font-bold font-serif text-white">AVILINE</h2>
+              <p className="text-sm text-[#DFE0DC] mt-1">Sustainable Fashion</p>
             </div>
-            <p className="text-sm text-[#B8D9C5] mb-4 leading-relaxed">
+            <p className="text-sm text-[#DFE0DC] mb-4 leading-relaxed">
               Premium quality clothing crafted with care for the environment. 
               Style that doesn't cost the earth.
             </p>
@@ -116,7 +116,7 @@ const Footer = () => {
                     rel="noopener noreferrer"
                     whileHover={{ y: -3, scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    className="w-8 h-8 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-all duration-300"
+                    className="w-8 h-8 bg-white/10 hover:bg-[#DFE0DC] hover:text-[#777E5C] rounded-full flex items-center justify-center transition-all duration-300"
                     aria-label={social.label}
                   >
                     <Icon className="text-sm" />
@@ -128,13 +128,13 @@ const Footer = () => {
 
           {/* Shop Links */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Shop</h3>
+            <h3 className="text-lg font-semibold mb-4 text-white">Shop</h3>
             <ul className="space-y-2">
               {footerLinks.shop.map((link, index) => (
                 <li key={index}>
                   <Link
                     href={link.href}
-                    className="text-sm text-[#B8D9C5] hover:text-white transition-colors duration-200"
+                    className="text-sm text-[#DFE0DC] hover:text-white transition-colors duration-200"
                   >
                     {link.name}
                   </Link>
@@ -145,13 +145,13 @@ const Footer = () => {
 
           {/* Categories Links */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Categories</h3>
+            <h3 className="text-lg font-semibold mb-4 text-white">Categories</h3>
             <ul className="space-y-2">
               {footerLinks.categories.map((link, index) => (
                 <li key={index}>
                   <Link
                     href={link.href}
-                    className="text-sm text-[#B8D9C5] hover:text-white transition-colors duration-200"
+                    className="text-sm text-[#DFE0DC] hover:text-white transition-colors duration-200"
                   >
                     {link.name}
                   </Link>
@@ -162,13 +162,13 @@ const Footer = () => {
 
           {/* Support Links */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Support</h3>
+            <h3 className="text-lg font-semibold mb-4 text-white">Support</h3>
             <ul className="space-y-2">
               {footerLinks.support.map((link, index) => (
                 <li key={index}>
                   <Link
                     href={link.href}
-                    className="text-sm text-[#B8D9C5] hover:text-white transition-colors duration-200"
+                    className="text-sm text-[#DFE0DC] hover:text-white transition-colors duration-200"
                   >
                     {link.name}
                   </Link>
@@ -179,13 +179,13 @@ const Footer = () => {
 
           {/* Company & Contact */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Company</h3>
+            <h3 className="text-lg font-semibold mb-4 text-white">Company</h3>
             <ul className="space-y-2">
               {footerLinks.company.map((link, index) => (
                 <li key={index}>
                   <Link
                     href={link.href}
-                    className="text-sm text-[#B8D9C5] hover:text-white transition-colors duration-200"
+                    className="text-sm text-[#DFE0DC] hover:text-white transition-colors duration-200"
                   >
                     {link.name}
                   </Link>
@@ -194,16 +194,16 @@ const Footer = () => {
             </ul>
             
             {/* Contact Info */}
-            <div className="mt-4 pt-4 border-t border-white/10">
-              <div className="flex items-center gap-2 text-sm text-[#B8D9C5] mb-2">
+            <div className="mt-4 pt-4 border-t border-white/20">
+              <div className="flex items-center gap-2 text-sm text-[#DFE0DC] mb-2 hover:text-white transition-colors">
                 <FaPhone className="text-xs" />
                 <span>+91 12345 67890</span>
               </div>
-              <div className="flex items-center gap-2 text-sm text-[#B8D9C5] mb-2">
+              <div className="flex items-center gap-2 text-sm text-[#DFE0DC] mb-2 hover:text-white transition-colors">
                 <FaEnvelope className="text-xs" />
-                <span>support@ecostore.com</span>
+                <span>support@aviline.com</span>
               </div>
-              <div className="flex items-start gap-2 text-sm text-[#B8D9C5]">
+              <div className="flex items-start gap-2 text-sm text-[#DFE0DC] hover:text-white transition-colors">
                 <FaMapMarkerAlt className="text-xs mt-0.5" />
                 <span>Mumbai, Maharashtra, India</span>
               </div>
@@ -212,24 +212,24 @@ const Footer = () => {
         </div>
 
         {/* Newsletter Section */}
-        <div className="mt-12 pt-8 border-t border-white/10">
+        <div className="mt-12 pt-8 border-t border-white/20">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
             <div>
-              <h3 className="text-lg font-semibold mb-2">Subscribe to Newsletter</h3>
-              <p className="text-sm text-[#B8D9C5]">
+              <h3 className="text-lg font-semibold mb-2 text-white">Subscribe to Newsletter</h3>
+              <p className="text-sm text-[#DFE0DC]">
                 Get 10% off your first purchase and stay updated with our latest collections.
               </p>
             </div>
             <div>
-              <form className="flex gap-2 flex-wrap w-full ">
+              <form className="flex gap-2 flex-wrap w-full">
                 <input
                   type="email"
                   placeholder="Enter your email"
-                  className=" px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-white placeholder:text-[#B8D9C5] focus:outline-none focus:ring-2 focus:ring-[#8BC34A]"
+                  className="flex-1 px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-white placeholder:text-[#DFE0DC] focus:outline-none focus:ring-2 focus:ring-[#D1D88D] focus:border-transparent transition-all duration-200"
                 />
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-[#8BC34A] hover:bg-[#5A9E4E] text-white rounded-xl font-semibold transition-colors duration-300 whitespace-nowrap"
+                  className="px-6 py-2 bg-[#DFE0DC] hover:bg-[#D1D88D] text-[#777E5C] font-semibold rounded-xl transition-all duration-300 whitespace-nowrap hover:shadow-lg hover:scale-105 active:scale-95"
                 >
                   Subscribe
                 </button>
@@ -239,7 +239,7 @@ const Footer = () => {
         </div>
 
         {/* Payment Methods */}
-        <div className="mt-8 pt-6 border-t border-white/10">
+        <div className="mt-8 pt-6 border-t border-white/20">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-3">
               {paymentMethods.map((method, index) => {
@@ -247,28 +247,28 @@ const Footer = () => {
                 return (
                   <div
                     key={index}
-                    className="group relative"
+                    className="group relative cursor-pointer"
                     title={method.name}
                   >
-                    <Icon className="text-2xl text-[#B8D9C5] hover:text-white transition-colors duration-200" />
+                    <Icon className="text-2xl text-[#DFE0DC] hover:text-white transition-colors duration-200" />
                   </div>
                 );
               })}
             </div>
-            <p className="text-xs text-[#B8D9C5]">
+            <p className="text-xs text-[#DFE0DC]">
               © {currentYear} AVILINE. All rights reserved.
             </p>
           </div>
         </div>
 
         {/* Bottom Bar */}
-        <div className="mt-6 pt-4 border-t border-white/10">
-          <div className="flex flex-wrap justify-center gap-4 text-xs text-[#B8D9C5]">
-            <Link href="/privacy" className="hover:text-white transition-colors">
+        <div className="mt-6 pt-4 border-t border-white/20">
+          <div className="flex flex-wrap justify-center gap-4 text-xs text-[#DFE0DC]">
+            <Link href="/PrivacyPolicy" className="hover:text-white transition-colors">
               Privacy Policy
             </Link>
             <span>•</span>
-            <Link href="/terms" className="hover:text-white transition-colors">
+            <Link href="/TermsConditions" className="hover:text-white transition-colors">
               Terms of Service
             </Link>
             <span>•</span>
@@ -280,8 +280,8 @@ const Footer = () => {
               Return Policy
             </Link>
           </div>
-          <p className="text-center text-xs text-[#8A9B6E] mt-3">
-            Made with <FaHeart className="inline text-red-400 text-xs" /> for sustainable fashion
+          <p className="text-center text-xs text-[#C4CBB5] mt-3 flex items-center justify-center gap-1">
+            Made with <FaHeart className="inline text-rose-400 text-xs animate-pulse" /> for sustainable fashion
           </p>
         </div>
       </div>
