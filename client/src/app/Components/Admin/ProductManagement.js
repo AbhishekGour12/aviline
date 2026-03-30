@@ -3,48 +3,31 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  FaPlus,
-  FaEdit,
-  FaTrash,
-  FaUpload,
-  FaDownload,
-  FaFileExcel,
-  FaTimes,
-  FaSave,
-  FaImage,
-  FaSearch,
-  FaFilter,
-  FaStar,
-  FaCheck,
-  FaChevronDown,
-  FaChevronUp,
-  FaBoxes,
-  FaTag,
-  FaWeight,
-  FaDollarSign,
-  FaPercent,
-  FaPalette,
-  FaRulerCombined,
-  FaEye,
-  FaInfoCircle,
-  FaImages,
-  FaCalendarAlt,
-  FaChartBar
-  
+  FaPlus, FaEdit, FaTrash, FaUpload, FaDownload, FaFileExcel,
+  FaTimes, FaSave, FaImage, FaSearch, FaFilter, FaStar, FaEye,
+  FaBoxes, FaTag, FaWeight, FaDollarSign, FaPercent, FaPalette,
+  FaRulerCombined, FaInfoCircle, FaImages, FaCalendarAlt, FaChartBar,
+  FaChevronDown, FaChevronUp, FaCheck, FaTshirt, FaChild, FaFemale
 } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 import { ProductApi } from '../../lib/ProductApi';
 
 const ProductManagement = () => {
-  // Categories state with subcategories
-  const [categories, setCategories] = useState({});
-  const [availableSizes, setAvailableSizes] = useState(['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL']);
-  const [availableColors, setAvailableColors] = useState([
-    'Red', 'Blue', 'Green', 'Black', 'White', 'Yellow', 'Purple', 'Orange',
-    'Brown', 'Pink', 'Gray', 'Navy', 'Maroon', 'Teal', 'Olive', 'Coral'
-  ]);
+  // Hierarchical Categories State
+  const [categories, setCategories] = useState([]);
+  const [subcategories, setSubcategories] = useState({});
+  const [productTypes, setProductTypes] = useState({});
+  const [fabricTypes, setFabricTypes] = useState([]);
+  
+  // Colors & Sizes
+  const [availableSizes, setAvailableSizes] = useState([]);
+  const [availableColors, setAvailableColors] = useState([]);
   const [customColors, setCustomColors] = useState([]);
-
+const [colorsFullData, setColorsFullData] = useState([]);
+const [sizesFullData, setSizesFullData] = useState([]);
+const [newColorHex, setNewColorHex] = useState('#000000');
+const [editingColor, setEditingColor] = useState(null);
+const [editingSize, setEditingSize] = useState(null);
   // Products state
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
@@ -54,8 +37,10 @@ const ProductManagement = () => {
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
   const [showColorSizeModal, setShowColorSizeModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [viewingProduct, setViewingProduct] = useState(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('manual');
   const [pagination, setPagination] = useState({
@@ -74,8 +59,10 @@ const ProductManagement = () => {
     stock: '',
     weight: '',
     images: [],
-    category: '',
-    subcategory: '',
+    categoryId: '',
+    subcategoryId: '',
+    productTypeId: '',
+    fabricTypeId: '',
     sizes: [],
     colors: [],
     customColors: [],
@@ -92,11 +79,15 @@ const ProductManagement = () => {
   // Category Management States
   const [newCategory, setNewCategory] = useState('');
   const [newSubcategory, setNewSubcategory] = useState('');
-  const [selectedCategoryForSub, setSelectedCategoryForSub] = useState('');
-  const [editCategory, setEditCategory] = useState({ name: '', original: '' });
-  const [editSubcategory, setEditSubcategory] = useState({ name: '', original: '', category: '' });
- const [showViewModal, setShowViewModal] = useState(false);
-  const [viewingProduct, setViewingProduct] = useState(null);
+  const [newProductType, setNewProductType] = useState('');
+  const [newFabricType, setNewFabricType] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedSubcategory, setSelectedSubcategory] = useState('');
+  const [editCategory, setEditCategory] = useState({ id: null, name: '' });
+  const [editSubcategory, setEditSubcategory] = useState({ id: null, name: '', categoryId: '' });
+  const [editProductType, setEditProductType] = useState({ id: null, name: '', subcategoryId: '' });
+  const [editFabricType, setEditFabricType] = useState({ id: null, name: '' });
+
   // Color/Size Management States
   const [newColor, setNewColor] = useState('');
   const [newSize, setNewSize] = useState('');
@@ -108,6 +99,8 @@ const ProductManagement = () => {
     search: '',
     category: '',
     subcategory: '',
+    productType: '',
+    fabricType: '',
     minPrice: '',
     maxPrice: '',
     isFeatured: '',
@@ -124,22 +117,22 @@ const ProductManagement = () => {
       stock: '',
       weight: '',
       images: [],
-      category: '',
-      subcategory: '',
+      categoryId: '',
+      subcategoryId: '',
+      productTypeId: '',
+      fabricTypeId: '',
       sizes: [],
       colors: [],
       customColors: [],
       isFeatured: false,
-      rating: 0
+      rating: 0,
+      gstPercent: 18
     };
   }
 
   // Fetch all data on mount
   useEffect(() => {
-    fetchCategories();
-    fetchColors();
-    fetchSizes();
-    fetchProducts();
+    fetchAllData();
   }, []);
 
   // Fetch products when filters change
@@ -147,46 +140,139 @@ const ProductManagement = () => {
     fetchProducts();
   }, [filters]);
 
-  // Fetch categories from API
-  const fetchCategories = async () => {
+  // Helper function to get hex code for common colors
+const getColorHexCode = (colorName) => {
+  const colorMap = {
+    'red': '#FF0000',
+    'blue': '#0000FF',
+    'green': '#00FF00',
+    'black': '#000000',
+    'white': '#FFFFFF',
+    'yellow': '#FFFF00',
+    'purple': '#800080',
+    'orange': '#FFA500',
+    'brown': '#A52A2A',
+    'pink': '#FFC0CB',
+    'gray': '#808080',
+    'grey': '#808080',
+    'navy': '#000080',
+    'maroon': '#800000',
+    'teal': '#008080',
+    'olive': '#808000',
+    'coral': '#FF7F50',
+    'gold': '#FFD700',
+    'silver': '#C0C0C0',
+    'beige': '#F5F5DC',
+    'lavender': '#E6E6FA',
+    'cyan': '#00FFFF',
+    'magenta': '#FF00FF',
+    'indigo': '#4B0082',
+    'violet': '#EE82EE'
+  };
+  
+  const normalizedColor = colorName.toLowerCase().trim();
+  return colorMap[normalizedColor] || '#CCCCCC';
+};
+
+  const fetchAllData = async () => {
     try {
       setLoading(true);
-      const response = await ProductApi.getCategories();
-      setCategories(response);
+      await Promise.all([
+        fetchCategories(),
+        fetchSubcategories(),
+        fetchProductTypes(),
+        fetchFabricTypes(),
+        fetchColors(),
+        fetchSizes(),
+        fetchProducts()
+      ]);
     } catch (error) {
-      console.error('Error fetching categories:', error);
-      //alert('Failed to fetch categories');
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch colors from API
+  const fetchCategories = async () => {
+    try {
+      const response = await ProductApi.getCategories();
+      setCategories(response);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
+
+  const fetchSubcategories = async () => {
+    try {
+      const response = await ProductApi.getAllSubcategories();
+      const subcatMap = {};
+      response.forEach(sub => {
+        if (!subcatMap[sub.categoryId]) {
+          subcatMap[sub.categoryId] = [];
+        }
+        subcatMap[sub.categoryId].push(sub);
+      });
+      setSubcategories(subcatMap);
+    } catch (error) {
+      console.error('Error fetching subcategories:', error);
+    }
+  };
+
+  const fetchProductTypes = async () => {
+    try {
+      const response = await ProductApi.getAllProductTypes();
+      const typeMap = {};
+      response.forEach(type => {
+        if (!typeMap[type.subcategoryId]) {
+          typeMap[type.subcategoryId] = [];
+        }
+        typeMap[type.subcategoryId].push(type);
+      });
+      setProductTypes(typeMap);
+    } catch (error) {
+      console.error('Error fetching product types:', error);
+    }
+  };
+
+  const fetchFabricTypes = async () => {
+    try {
+      const response = await ProductApi.getFabricTypes();
+      setFabricTypes(response);
+    } catch (error) {
+      console.error('Error fetching fabric types:', error);
+    }
+  };
+
   const fetchColors = async () => {
-    try {
-      const response = await ProductApi.getColors();
-      setAvailableColors(response);
-    } catch (error) {
-      //console.error('Error fetching colors:', error);
-    }
-  };
+  try {
+    const response = await ProductApi.getColors();
+    setAvailableColors(response);
+    
+    // Also fetch full color details for hex codes
+    const colorsFull = await ProductApi.getColorsFull();
+    setColorsFullData(colorsFull);
+  } catch (error) {
+    console.error('Error fetching colors:', error);
+  }
+};
 
-  // Fetch sizes from API
-  const fetchSizes = async () => {
-    try {
-      const response = await ProductApi.getSizes();
-      setAvailableSizes(response);
-    } catch (error) {
-      console.error('Error fetching sizes:', error);
-    }
-  };
+const fetchSizes = async () => {
+  try {
+    const response = await ProductApi.getSizes();
+    setAvailableSizes(response);
+    
+    // Also fetch full size details
+    const sizesFull = await ProductApi.getSizesFull();
+    setSizesFullData(sizesFull);
+  } catch (error) {
+    console.error('Error fetching sizes:', error);
+  }
+};
 
-  // Fetch products from API
   const fetchProducts = async () => {
     try {
       setLoading(true);
       const response = await ProductApi.getProducts(filters);
-      console.log(response.products)
       setProducts(response.products);
       setFilteredProducts(response.products);
       setPagination({
@@ -197,10 +283,19 @@ const ProductManagement = () => {
       });
     } catch (error) {
       console.error('Error fetching products:', error);
-     // alert('Failed to fetch products');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Get subcategories for selected category
+  const getSubcategoriesForCategory = (categoryId) => {
+    return subcategories[categoryId] || [];
+  };
+
+  // Get product types for selected subcategory
+  const getProductTypesForSubcategory = (subcategoryId) => {
+    return productTypes[subcategoryId] || [];
   };
 
   // Add custom color
@@ -289,54 +384,62 @@ const ProductManagement = () => {
     }
   };
 
-  const resetForm = () => {
-    setProductForm({
-      name: '',
-      description: '',
-      price: '',
-      offerPercent: '',
-      stock: '',
-      weight: '',
-      images: [],
-      category: '',
-      subcategory: '',
-      sizes: [],
-      colors: [],
-      customColors: [],
-      isFeatured: false,
-      rating: 0,
-      gstPercent: 18
-    });
-    setCustomColors([]);
-  };
+ const resetForm = () => {
+  setProductForm({
+    name: '',
+    description: '',
+    price: '',
+    offerPercent: '',
+    stock: '',
+    weight: '',
+    images: [],
+    existingImagesToDelete: [], // Add this line
+    categoryId: '',
+    subcategoryId: '',
+    productTypeId: '',
+    fabricTypeId: '',
+    sizes: [],
+    colors: [],
+    customColors: [],
+    isFeatured: false,
+    rating: 0,
+    gstPercent: 18
+  });
+  setCustomColors([]);
+};
+
   // View product
   const openViewModal = (product) => {
     setViewingProduct(product);
     setShowViewModal(true);
   };
+
   // Edit product
   const openEditModal = (product) => {
-    setEditingProduct(product);
-    setProductForm({
-      name: product.name,
-      description: product.description || '',
-      price: product.price,
-      offerPercent: product.offerPercent || '',
-      stock: product.stock,
-      weight: product.weight,
-      images: [],
-      category: product.category,
-      subcategory: product.subcategory,
-      sizes: product.sizes || [],
-      colors: product.colors || [],
-      customColors: product.customColors || [],
-      isFeatured: product.isFeatured || false,
-      rating: product.rating || 0,
-      gstPercent: product.gstPercent || 18
-    });
-    setCustomColors(product.customColors || []);
-    setShowEditModal(true);
-  };
+  setEditingProduct(product);
+  setProductForm({
+    name: product.name,
+    description: product.description || '',
+    price: product.price,
+    offerPercent: product.offerPercent || '',
+    stock: product.stock,
+    weight: product.weight,
+    images: [],
+    existingImagesToDelete: [], // Add this line
+    categoryId: product.categoryId?._id || product.categoryId,
+    subcategoryId: product.subcategoryId?._id || product.subcategoryId,
+    productTypeId: product.productTypeId?._id || product.productTypeId,
+    fabricTypeId: product.fabricTypeId?._id || product.fabricTypeId,
+    sizes: product.sizes || [],
+    colors: product.colors || [],
+    customColors: product.customColors || [],
+    isFeatured: product.isFeatured || false,
+    rating: product.rating || 0,
+    gstPercent: product.gstPercent || 18
+  });
+  setCustomColors(product.customColors || []);
+  setShowEditModal(true);
+};
 
   const updateProduct = async (e) => {
     e.preventDefault();
@@ -435,8 +538,10 @@ const ProductManagement = () => {
         price: Number(product.price),
         stock: Number(product.stock),
         weight: Number(product.weight) || 0.5,
-        category: product.category,
-        subcategory: product.subcategory,
+        category: categories.find(c => c._id === product.categoryId)?.name || '',
+        subcategory: getSubcategoriesForCategory(product.categoryId).find(s => s._id === product.subcategoryId)?.name || '',
+        productType: getProductTypesForSubcategory(product.subcategoryId).find(t => t._id === product.productTypeId)?.name || '',
+        fabricType: fabricTypes.find(f => f._id === product.fabricTypeId)?.name || '',
         sizes: product.sizes || [],
         colors: product.colors || [],
         isFeatured: Boolean(product.isFeatured),
@@ -469,48 +574,55 @@ const ProductManagement = () => {
     }
   };
 
-  // CSV Upload
-  
   // Excel upload with images
-  const handleExcelUpload = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+  // In ProductManagement.js - handleExcelUpload function
+const handleExcelUpload = async (e) => {
+  e.preventDefault();
+  setLoading(true);
 
-    try {
-      const formData = new FormData();
-      
-      const excelFile = selectedFiles.find(
-        (f) => f.name.endsWith(".xlsx") || f.name.endsWith(".xls") || f.name.endsWith(".csv")
-      );
-      
-      if (!excelFile) {
-        alert("Please select a valid Excel file");
-        return;
-      }
-      
-      formData.append("excelFile", excelFile);
-
-      selectedFiles
-        .filter((f) => f.type.startsWith("image/"))
-        .forEach((file) => formData.append("productImages", file));
-
-      const response = await ProductApi.bulkExcelUpload(formData);
-
-      if (response.created > 0) {
-        alert(`✅ Uploaded ${response.created} products successfully`);
-        fetchProducts();
-        setShowBulkModal(false);
-        setSelectedFiles([]);
-      } else {
-        alert(`❌ Upload failed`);
-      }
-    } catch (error) {
-      console.error("Upload Excel error:", error);
-      alert(`Upload failed: ${error.message}`);
-    } finally {
-      setLoading(false);
+  try {
+    const formData = new FormData();
+    
+    // Find the excel file
+    const excelFile = selectedFiles.find(
+      (f) => f.name.endsWith(".xlsx") || f.name.endsWith(".xls") || f.name.endsWith(".csv")
+    );
+    
+    if (!excelFile) {
+      alert("Please select a valid Excel file");
+      return;
     }
-  };
+    
+    // Append excel file
+    formData.append("excelFile", excelFile);
+
+    // Append all images
+    const imageFiles = selectedFiles.filter((f) => f.type.startsWith("image/"));
+    imageFiles.forEach((file) => {
+      formData.append("productImages", file);
+    });
+
+    const response = await ProductApi.bulkExcelUpload(formData);
+
+    if (response.created > 0) {
+      alert(`✅ Uploaded ${response.created} products successfully`);
+      if (response.errors && response.errors.length > 0) {
+        console.warn('Partial errors:', response.errors);
+        alert(`⚠️ ${response.errors.length} rows had issues. Check console for details.`);
+      }
+      fetchProducts();
+      setShowBulkModal(false);
+      setSelectedFiles([]);
+    } else {
+      alert(`❌ Upload failed: ${response.errors?.join(', ') || 'Unknown error'}`);
+    }
+  } catch (error) {
+    console.error("Upload Excel error:", error);
+    alert(`Upload failed: ${error.message}`);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Excel download template
   const downloadExcelTemplate = () => {
@@ -522,8 +634,10 @@ const ProductManagement = () => {
         offerPercent: 10,
         stock: 10,
         weight: 0.5,
-        category: 'Wool',
-        subcategory: 'Jumpers',
+        category: 'Men',
+        subcategory: 'Topwear',
+        productType: 'Shirts',
+        fabricType: 'Cotton',
         sizes: 'S,M,L,XL',
         colors: 'Red,Blue,Black',
         isFeatured: 'true',
@@ -540,12 +654,18 @@ const ProductManagement = () => {
       ['INSTRUCTIONS FOR EXCEL UPLOAD:'],
       [''],
       ['1. Fill product data in the Products sheet'],
-      ['2. Required fields: name, price, category, subcategory'],
-      ['3. Sizes column: Add comma-separated sizes (e.g., "S,M,L,XL")'],
-      ['4. Colors column: Add comma-separated colors (e.g., "Red,Blue,Black")'],
-      ['5. For featured products, set isFeatured to "true"'],
-      ['6. Images column: Add comma-separated image filenames'],
-      ['7. Upload images separately with matching filenames'],
+      ['2. Required fields: name, price, category, subcategory, productType'],
+      ['3. Category options: Men, Women, Kids'],
+      ['4. Subcategory for Men: Topwear, Bottomwear, Footwear, Accessories'],
+      ['5. Subcategory for Women: Western, Ethnic, Footwear, Accessories'],
+      ['6. Subcategory for Kids: Girls, Boys, Footwear, Accessories'],
+      ['7. Product Types: Shirts, T-Shirts, Jeans, Dresses, Kurtas, etc.'],
+      ['8. Fabric Types: Cotton, Linen, Silk, Wool, Denim, etc.'],
+      ['9. Sizes column: Add comma-separated sizes (e.g., "S,M,L,XL")'],
+      ['10. Colors column: Add comma-separated colors (e.g., "Red,Blue,Black")'],
+      ['11. For featured products, set isFeatured to "true"'],
+      ['12. Images column: Add comma-separated image filenames'],
+      ['13. Upload images separately with matching filenames'],
       ['']
     ];
 
@@ -583,11 +703,11 @@ const ProductManagement = () => {
 
   // Category Management Functions
   const addCategory = async () => {
-    if (newCategory && !categories[newCategory]) {
+    if (newCategory.trim()) {
       try {
-        await ProductApi.addCategory(newCategory, []);
-        setCategories({ ...categories, [newCategory]: [] });
+        await ProductApi.addCategory({ name: newCategory });
         setNewCategory('');
+        fetchCategories();
         alert('Category added successfully!');
       } catch (error) {
         alert('Failed to add category: ' + error.message);
@@ -595,13 +715,11 @@ const ProductManagement = () => {
     }
   };
 
-  const deleteCategory = async (category) => {
-    if (window.confirm(`Are you sure you want to delete "${category}" category?`)) {
+  const deleteCategory = async (categoryId) => {
+    if (window.confirm('Are you sure you want to delete this category?')) {
       try {
-        await ProductApi.deleteCategory(category);
-        const updated = { ...categories };
-        delete updated[category];
-        setCategories(updated);
+        await ProductApi.deleteCategory(categoryId);
+        fetchCategories();
         alert('Category deleted successfully!');
       } catch (error) {
         alert('Failed to delete category: ' + error.message);
@@ -610,50 +728,44 @@ const ProductManagement = () => {
   };
 
   const startEditCategory = (category) => {
-    setEditCategory({ name: category, original: category });
+    setEditCategory({ id: category._id, name: category.name });
   };
 
   const saveEditCategory = async () => {
-    if (editCategory.name && editCategory.name !== editCategory.original) {
+    if (editCategory.name.trim()) {
       try {
-        // Update categories in backend
-        const updated = { ...categories };
-        updated[editCategory.name] = [...updated[editCategory.original]];
-        delete updated[editCategory.original];
-        await ProductApi.updateCategories(updated);
-        setCategories(updated);
+        await ProductApi.updateCategory(editCategory.id, { name: editCategory.name });
+        fetchCategories();
+        setEditCategory({ id: null, name: '' });
         alert('Category updated successfully!');
       } catch (error) {
         alert('Failed to update category: ' + error.message);
       }
     }
-    setEditCategory({ name: '', original: '' });
   };
 
+  // Subcategory Management Functions
   const addSubcategory = async () => {
-    if (selectedCategoryForSub && newSubcategory) {
+    if (selectedCategory && newSubcategory.trim()) {
       try {
-        await ProductApi.addSubcategory(selectedCategoryForSub, newSubcategory);
-        const updated = { ...categories };
-        if (!updated[selectedCategoryForSub].includes(newSubcategory)) {
-          updated[selectedCategoryForSub] = [...updated[selectedCategoryForSub], newSubcategory];
-          setCategories(updated);
-          setNewSubcategory('');
-          alert('Subcategory added successfully!');
-        }
+        await ProductApi.addSubcategory({ 
+          name: newSubcategory, 
+          categoryId: selectedCategory 
+        });
+        setNewSubcategory('');
+        fetchSubcategories();
+        alert('Subcategory added successfully!');
       } catch (error) {
         alert('Failed to add subcategory: ' + error.message);
       }
     }
   };
 
-  const deleteSubcategory = async (category, subcategory) => {
-    if (window.confirm(`Are you sure you want to delete "${subcategory}"?`)) {
+  const deleteSubcategory = async (subcategoryId) => {
+    if (window.confirm('Are you sure you want to delete this subcategory?')) {
       try {
-        await ProductApi.deleteSubcategory(category, subcategory);
-        const updated = { ...categories };
-        updated[category] = updated[category].filter(sub => sub !== subcategory);
-        setCategories(updated);
+        await ProductApi.deleteSubcategory(subcategoryId);
+        fetchSubcategories();
         alert('Subcategory deleted successfully!');
       } catch (error) {
         alert('Failed to delete subcategory: ' + error.message);
@@ -661,83 +773,210 @@ const ProductManagement = () => {
     }
   };
 
-  const startEditSubcategory = (category, subcategory) => {
-    setEditSubcategory({ name: subcategory, original: subcategory, category });
+  const startEditSubcategory = (subcategory) => {
+    setEditSubcategory({ 
+      id: subcategory._id, 
+      name: subcategory.name, 
+      categoryId: subcategory.categoryId 
+    });
   };
 
   const saveEditSubcategory = async () => {
-    if (editSubcategory.name && editSubcategory.name !== editSubcategory.original) {
+    if (editSubcategory.name.trim()) {
       try {
-        const updated = { ...categories };
-        const index = updated[editSubcategory.category].indexOf(editSubcategory.original);
-        if (index !== -1) {
-          updated[editSubcategory.category][index] = editSubcategory.name;
-          await ProductApi.updateCategories(updated);
-          setCategories(updated);
-          alert('Subcategory updated successfully!');
-        }
+        await ProductApi.updateSubcategory(editSubcategory.id, { name: editSubcategory.name });
+        fetchSubcategories();
+        setEditSubcategory({ id: null, name: '', categoryId: '' });
+        alert('Subcategory updated successfully!');
       } catch (error) {
         alert('Failed to update subcategory: ' + error.message);
       }
     }
-    setEditSubcategory({ name: '', original: '', category: '' });
   };
 
+  // Product Type Management Functions
+  const addProductType = async () => {
+    if (selectedSubcategory && newProductType.trim()) {
+      try {
+        await ProductApi.addProductType({ 
+          name: newProductType, 
+          subcategoryId: selectedSubcategory 
+        });
+        setNewProductType('');
+        fetchProductTypes();
+        alert('Product type added successfully!');
+      } catch (error) {
+        alert('Failed to add product type: ' + error.message);
+      }
+    }
+  };
+
+  const deleteProductType = async (productTypeId) => {
+    if (window.confirm('Are you sure you want to delete this product type?')) {
+      try {
+        await ProductApi.deleteProductType(productTypeId);
+        fetchProductTypes();
+        alert('Product type deleted successfully!');
+      } catch (error) {
+        alert('Failed to delete product type: ' + error.message);
+      }
+    }
+  };
+
+  const startEditProductType = (productType) => {
+    setEditProductType({ 
+      id: productType._id, 
+      name: productType.name, 
+      subcategoryId: productType.subcategoryId 
+    });
+  };
+
+  const saveEditProductType = async () => {
+    if (editProductType.name.trim()) {
+      try {
+        await ProductApi.updateProductType(editProductType.id, { name: editProductType.name });
+        fetchProductTypes();
+        setEditProductType({ id: null, name: '', subcategoryId: '' });
+        alert('Product type updated successfully!');
+      } catch (error) {
+        alert('Failed to update product type: ' + error.message);
+      }
+    }
+  };
+
+  // Fabric Type Management Functions
+  const addFabricType = async () => {
+    if (newFabricType.trim()) {
+      try {
+        await ProductApi.addFabricType({ name: newFabricType });
+        setNewFabricType('');
+        fetchFabricTypes();
+        alert('Fabric type added successfully!');
+      } catch (error) {
+        alert('Failed to add fabric type: ' + error.message);
+      }
+    }
+  };
+
+  const deleteFabricType = async (fabricTypeId) => {
+    if (window.confirm('Are you sure you want to delete this fabric type?')) {
+      try {
+        await ProductApi.deleteFabricType(fabricTypeId);
+        fetchFabricTypes();
+        alert('Fabric type deleted successfully!');
+      } catch (error) {
+        alert('Failed to delete fabric type: ' + error.message);
+      }
+    }
+  };
+
+  const startEditFabricType = (fabricType) => {
+    setEditFabricType({ id: fabricType._id, name: fabricType.name });
+  };
+
+  const saveEditFabricType = async () => {
+    if (editFabricType.name.trim()) {
+      try {
+        await ProductApi.updateFabricType(editFabricType.id, { name: editFabricType.name });
+        fetchFabricTypes();
+        setEditFabricType({ id: null, name: '' });
+        alert('Fabric type updated successfully!');
+      } catch (error) {
+        alert('Failed to update fabric type: ' + error.message);
+      }
+    }
+  };
+// Color Management Functions
+const addNewColor = async () => {
+  if (newColor && !availableColors.includes(newColor)) {
+    try {
+      await ProductApi.addColor({ name: newColor, hexCode: newColorHex });
+      await fetchColors(); // Refresh colors
+      setNewColor('');
+      setNewColorHex('#000000');
+      alert('Color added successfully!');
+    } catch (error) {
+      alert('Failed to add color: ' + error.message);
+    }
+  }
+};
+
+const deleteColor = async (colorId) => {
+  if (window.confirm('Are you sure you want to delete this color?')) {
+    try {
+      await ProductApi.deleteColor(colorId);
+      await fetchColors(); // Refresh colors
+      alert('Color deleted successfully!');
+    } catch (error) {
+      alert('Failed to delete color: ' + error.message);
+    }
+  }
+};
+
+const startEditColor = (name, hexCode, id) => {
+  setEditingColor({ name, hexCode, id });
+};
+
+const saveEditColor = async () => {
+  if (editingColor.name.trim()) {
+    try {
+      await ProductApi.updateColor(editingColor.id, { 
+        name: editingColor.name, 
+        hexCode: editingColor.hexCode 
+      });
+      await fetchColors(); // Refresh colors
+      setEditingColor(null);
+      alert('Color updated successfully!');
+    } catch (error) {
+      alert('Failed to update color: ' + error.message);
+    }
+  }
+};
+
+// Size Management Functions
+const addNewSize = async () => {
+  if (newSize && !availableSizes.includes(newSize)) {
+    try {
+      await ProductApi.addSize({ name: newSize });
+      await fetchSizes(); // Refresh sizes
+      setNewSize('');
+      alert('Size added successfully!');
+    } catch (error) {
+      alert('Failed to add size: ' + error.message);
+    }
+  }
+};
+
+const deleteSize = async (sizeId) => {
+  if (window.confirm('Are you sure you want to delete this size?')) {
+    try {
+      await ProductApi.deleteSize(sizeId);
+      await fetchSizes(); // Refresh sizes
+      alert('Size deleted successfully!');
+    } catch (error) {
+      alert('Failed to delete size: ' + error.message);
+    }
+  }
+};
+
+const startEditSize = (name, id) => {
+  setEditingSize({ name, id });
+};
+
+const saveEditSize = async () => {
+  if (editingSize.name.trim()) {
+    try {
+      await ProductApi.updateSize(editingSize.id, { name: editingSize.name });
+      await fetchSizes(); // Refresh sizes
+      setEditingSize(null);
+      alert('Size updated successfully!');
+    } catch (error) {
+      alert('Failed to update size: ' + error.message);
+    }
+  }
+};
   // Color Management Functions
-  const addNewColor = async () => {
-    if (newColor && !availableColors.includes(newColor)) {
-      try {
-        const updatedColors = [...availableColors, newColor];
-        await ProductApi.updateColors(updatedColors);
-        setAvailableColors(updatedColors);
-        setNewColor('');
-        alert('Color added successfully!');
-      } catch (error) {
-        alert('Failed to add color: ' + error.message);
-      }
-    }
-  };
-
-  const deleteColor = async (color) => {
-    if (window.confirm(`Are you sure you want to delete "${color}" color?`)) {
-      try {
-        const updatedColors = availableColors.filter(c => c !== color);
-        await ProductApi.updateColors(updatedColors);
-        setAvailableColors(updatedColors);
-        alert('Color deleted successfully!');
-      } catch (error) {
-        alert('Failed to delete color: ' + error.message);
-      }
-    }
-  };
-
-  // Size Management Functions
-  const addNewSize = async () => {
-    if (newSize && !availableSizes.includes(newSize)) {
-      try {
-        const updatedSizes = [...availableSizes, newSize];
-        await ProductApi.updateSizes(updatedSizes);
-        setAvailableSizes(updatedSizes);
-        setNewSize('');
-        alert('Size added successfully!');
-      } catch (error) {
-        alert('Failed to add size: ' + error.message);
-      }
-    }
-  };
-
-  const deleteSize = async (size) => {
-    if (window.confirm(`Are you sure you want to delete "${size}" size?`)) {
-      try {
-        const updatedSizes = availableSizes.filter(s => s !== size);
-        await ProductApi.updateSizes(updatedSizes);
-        setAvailableSizes(updatedSizes);
-        alert('Size deleted successfully!');
-      } catch (error) {
-        alert('Failed to delete size: ' + error.message);
-      }
-    }
-  };
+  
 
   // Clear filters
   const clearFilters = () => {
@@ -745,6 +984,8 @@ const ProductManagement = () => {
       search: '',
       category: '',
       subcategory: '',
+      productType: '',
+      fabricType: '',
       minPrice: '',
       maxPrice: '',
       isFeatured: '',
@@ -756,7 +997,8 @@ const ProductManagement = () => {
   const handlePageChange = (newPage) => {
     setFilters({ ...filters, page: newPage });
   };
-   // Format date
+
+  // Format date
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
@@ -766,6 +1008,21 @@ const ProductManagement = () => {
       year: 'numeric'
     });
   };
+
+  // Get category icon
+  const getCategoryIcon = (categoryName) => {
+    switch(categoryName?.toLowerCase()) {
+      case 'men':
+        return <FaTshirt className="text-blue-600" />;
+      case 'women':
+        return <FaFemale className="text-pink-500" />;
+      case 'kids':
+        return <FaChild className="text-green-500" />;
+      default:
+        return <FaTag className="text-[#8A9B6E]" />;
+    }
+  };
+
 
   return (
     <div className="space-y-6">
@@ -830,8 +1087,8 @@ const ProductManagement = () => {
           <h3 className="font-semibold text-[#1A4D3E]">Filters</h3>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-          <div className="md:col-span-2">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="lg:col-span-2">
             <div className="relative">
               <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#8A9B6E]" />
               <input
@@ -847,12 +1104,12 @@ const ProductManagement = () => {
           <div>
             <select
               value={filters.category}
-              onChange={(e) => setFilters({ ...filters, category: e.target.value, subcategory: '', page: 1 })}
+              onChange={(e) => setFilters({ ...filters, category: e.target.value, subcategory: '', productType: '', page: 1 })}
               className="w-full px-4 py-2 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
             >
               <option value="">All Categories</option>
-              {Object.keys(categories).map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
+              {categories.map(cat => (
+                <option key={cat._id} value={cat._id}>{cat.name}</option>
               ))}
             </select>
           </div>
@@ -860,17 +1117,46 @@ const ProductManagement = () => {
           <div>
             <select
               value={filters.subcategory}
-              onChange={(e) => setFilters({ ...filters, subcategory: e.target.value, page: 1 })}
+              onChange={(e) => setFilters({ ...filters, subcategory: e.target.value, productType: '', page: 1 })}
               disabled={!filters.category}
               className="w-full px-4 py-2 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] disabled:opacity-50"
             >
               <option value="">All Subcategories</option>
-              {filters.category && categories[filters.category]?.map(sub => (
-                <option key={sub} value={sub}>{sub}</option>
+              {filters.category && getSubcategoriesForCategory(filters.category).map(sub => (
+                <option key={sub._id} value={sub._id}>{sub.name}</option>
               ))}
             </select>
           </div>
           
+          <div>
+            <select
+              value={filters.productType}
+              onChange={(e) => setFilters({ ...filters, productType: e.target.value, page: 1 })}
+              disabled={!filters.subcategory}
+              className="w-full px-4 py-2 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] disabled:opacity-50"
+            >
+              <option value="">All Product Types</option>
+              {filters.subcategory && getProductTypesForSubcategory(filters.subcategory).map(type => (
+                <option key={type._id} value={type._id}>{type.name}</option>
+              ))}
+            </select>
+          </div>
+          
+          <div>
+            <select
+              value={filters.fabricType}
+              onChange={(e) => setFilters({ ...filters, fabricType: e.target.value, page: 1 })}
+              className="w-full px-4 py-2 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
+            >
+              <option value="">All Fabrics</option>
+              {fabricTypes.map(fabric => (
+                <option key={fabric._id} value={fabric._id}>{fabric.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
           <div>
             <input
               type="number"
@@ -892,7 +1178,7 @@ const ProductManagement = () => {
           </div>
         </div>
         
-        {(filters.search || filters.category || filters.subcategory || filters.minPrice || filters.maxPrice) && (
+        {(filters.search || filters.category || filters.subcategory || filters.productType || filters.fabricType || filters.minPrice || filters.maxPrice) && (
           <div className="flex justify-end mt-4">
             <button
               onClick={clearFilters}
@@ -918,12 +1204,10 @@ const ProductManagement = () => {
                   <tr>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-[#1A4D3E]">Product</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-[#1A4D3E]">Category</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-[#1A4D3E]">Product Type</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-[#1A4D3E]">Fabric</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-[#1A4D3E]">Price</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-[#1A4D3E]">Stock</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-[#1A4D3E]">Sizes</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-[#1A4D3E]">Rating</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-[#1A4D3E]">Colors</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-[#1A4D3E]">is Featured</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-[#1A4D3E]">Actions</th>
                   </tr>
                 </thead>
@@ -937,22 +1221,39 @@ const ProductManagement = () => {
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-gradient-to-br from-[#8BC34A] to-[#5A9E4E] rounded-xl flex items-center justify-center text-white font-bold">
-                           <img
-                        src={product.imageUrls?.[0]?.startsWith('/uploads') ? `${process.env.NEXT_PUBLIC_API}${product.imageUrls?.[0]}` : URL.createObjectURL(product.imageUrls?.[0])}
-                        className="w-12 h-12 rounded-xl object-cover border"
-                        alt={product.name}
-                      />
+                          <div className="w-12 h-12 bg-gradient-to-br from-[#8BC34A] to-[#5A9E4E] rounded-xl flex items-center justify-center text-white font-bold overflow-hidden">
+                            {product.imageUrls?.[0] ? (
+                              <img
+                                src={product.imageUrls[0].startsWith('/uploads') ? `${process.env.NEXT_PUBLIC_API}${product.imageUrls[0]}` : product.imageUrls[0]}
+                                className="w-full h-full rounded-xl object-cover"
+                                alt={product.name}
+                              />
+                            ) : (
+                              <FaImage className="text-white text-xl" />
+                            )}
                           </div>
                           <div>
                             <p className="font-semibold text-[#1A4D3E]">{product.name}</p>
-                            <p className="text-xs text-[#8A9B6E] line-clamp-1">{product.description?.slice(0, 100)}...</p>
+                            <p className="text-xs text-[#8A9B6E] line-clamp-1">{product.description?.slice(0, 50)}...</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="text-[#1A4D3E]">{product.category}</p>
-                        <p className="text-xs text-[#8A9B6E]">{product.subcategory}</p>
+                        <div className="flex items-center gap-2">
+                          {getCategoryIcon(product.category)}
+                          <div>
+                            <p className="text-[#1A4D3E]">{product.category}</p>
+                            <p className="text-xs text-[#8A9B6E]">{product.subcategory}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="text-[#1A4D3E]">{product.productType}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="px-2 py-1 bg-[#F5F9F0] text-xs rounded-full">
+                          {product.fabricType || 'N/A'}
+                        </span>
                       </td>
                       <td className="px-6 py-4">
                         <p className="font-semibold text-[#1A4D3E]">₹{product.price}</p>
@@ -970,51 +1271,11 @@ const ProductManagement = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex gap-1 flex-wrap">
-                          {product.sizes?.slice(0, 3).map(size => (
-                            <span key={size} className="px-2 py-1 bg-[#F5F9F0] text-xs rounded-lg">
-                              {size}
-                            </span>
-                          ))}
-                          {product.sizes?.length > 3 && (
-                            <span className="px-2 py-1 bg-[#F5F9F0] text-xs rounded-lg">
-                              +{product.sizes.length - 3}
-                            </span>
-                          )}
-                        </div>
-                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-1">
-                          <FaStar className="text-yellow-400" />
-                          <span className="text-[#1A4D3E]">{product.rating}</span>
-                        </div>
-                       </td>
-                       <td className="px-6 py-4">
-                        <div className="flex gap-1 flex-wrap">
-                          {product.colors?.slice(0, 3).map(color => (
-                            <span key={color} className="px-2 py-1 bg-[#F5F9F0] text-xs rounded-lg">
-                              {color}
-                            </span>
-                          ))}
-                          {product.colors?.length > 3 && (
-                            <span className="px-2 py-1 bg-[#F5F9F0] text-xs rounded-lg">
-                              +{product.colors.length - 3}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        {product.isFeatured && (
-                          <span className="px-2 py-1 bg-purple-100 text-purple-600 text-xs rounded-full font-semibold">
-                            Featured
-                          </span>
-                        )}
-                       </td>
-                      <td className="px-6 py-4">
                         <div className="flex gap-2">
                           <button
                             onClick={() => openEditModal(product)}
                             className="p-2 text-[#8BC34A] hover:bg-[#F5F9F0] rounded-xl transition-colors"
+                            title="Edit"
                           >
                             <FaEdit />
                           </button>
@@ -1028,11 +1289,12 @@ const ProductManagement = () => {
                           <button
                             onClick={() => deleteProduct(product._id)}
                             className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                            title="Delete"
                           >
                             <FaTrash />
                           </button>
                         </div>
-                       </td>
+                      </td>
                     </motion.tr>
                   ))}
                 </tbody>
@@ -1098,6 +1360,480 @@ const ProductManagement = () => {
         )}
       </div>
 
+      {/* Add Product Modal */}
+      <AnimatePresence>
+        {showAddModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-white rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-y-auto"
+            >
+              <div className="sticky top-0 bg-white z-10 p-6 border-b border-[#D0E0C0]">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-2xl font-bold text-[#1A4D3E]">Add New Product</h3>
+                  <button
+                    onClick={() => setShowAddModal(false)}
+                    className="p-2 hover:bg-[#F5F9F0] rounded-xl transition-colors"
+                  >
+                    <FaTimes className="text-[#8A9B6E]" />
+                  </button>
+                </div>
+              </div>
+
+              <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                {/* Basic Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-[#1A4D3E] font-semibold mb-2">
+                      Product Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={productForm.name}
+                      onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
+                      className="w-full px-4 py-3 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
+                      placeholder="Enter product name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[#1A4D3E] font-semibold mb-2">
+                      Category *
+                    </label>
+                    <select
+                      required
+                      value={productForm.categoryId}
+                      onChange={(e) => {
+                        setProductForm({ 
+                          ...productForm, 
+                          categoryId: e.target.value, 
+                          subcategoryId: '',
+                          productTypeId: '' 
+                        });
+                      }}
+                      className="w-full px-4 py-3 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
+                    >
+                      <option value="">Select Category</option>
+                      {categories.map(cat => (
+                        <option key={cat._id} value={cat._id}>{cat.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[#1A4D3E] font-semibold mb-2">
+                      Subcategory *
+                    </label>
+                    <select
+                      required
+                      value={productForm.subcategoryId}
+                      onChange={(e) => {
+                        setProductForm({ 
+                          ...productForm, 
+                          subcategoryId: e.target.value,
+                          productTypeId: '' 
+                        });
+                      }}
+                      disabled={!productForm.categoryId}
+                      className="w-full px-4 py-3 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] disabled:opacity-50"
+                    >
+                      <option value="">Select Subcategory</option>
+                      {productForm.categoryId && getSubcategoriesForCategory(productForm.categoryId).map(sub => (
+                        <option key={sub._id} value={sub._id}>{sub.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[#1A4D3E] font-semibold mb-2">
+                      Product Type *
+                    </label>
+                    <select
+                      required
+                      value={productForm.productTypeId}
+                      onChange={(e) => setProductForm({ ...productForm, productTypeId: e.target.value })}
+                      disabled={!productForm.subcategoryId}
+                      className="w-full px-4 py-3 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] disabled:opacity-50"
+                    >
+                      <option value="">Select Product Type</option>
+                      {productForm.subcategoryId && getProductTypesForSubcategory(productForm.subcategoryId).map(type => (
+                        <option key={type._id} value={type._id}>{type.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[#1A4D3E] font-semibold mb-2">
+                      Fabric Type
+                    </label>
+                    <select
+                      value={productForm.fabricTypeId}
+                      onChange={(e) => setProductForm({ ...productForm, fabricTypeId: e.target.value })}
+                      className="w-full px-4 py-3 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
+                    >
+                      <option value="">Select Fabric Type</option>
+                      {fabricTypes.map(fabric => (
+                        <option key={fabric._id} value={fabric._id}>{fabric.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[#1A4D3E] font-semibold mb-2">
+                      Price (₹) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      value={productForm.price}
+                      onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
+                      className="w-full px-4 py-3 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[#1A4D3E] font-semibold mb-2">
+                      Offer Percentage (%)
+                    </label>
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      max="100"
+                      value={productForm.offerPercent}
+                      onChange={(e) => setProductForm({ ...productForm, offerPercent: e.target.value })}
+                      className="w-full px-4 py-3 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
+                      placeholder="0"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[#1A4D3E] font-semibold mb-2">
+                      Stock *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      value={productForm.stock}
+                      onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })}
+                      className="w-full px-4 py-3 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
+                      placeholder="0"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[#1A4D3E] font-semibold mb-2">
+                      Weight (kg) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      value={productForm.weight}
+                      onChange={(e) => setProductForm({ ...productForm, weight: e.target.value })}
+                      className="w-full px-4 py-3 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
+                      placeholder="0.5"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[#1A4D3E] font-semibold mb-2">
+                      GST (%)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="28"
+                      value={productForm.gstPercent}
+                      onChange={(e) => setProductForm({ ...productForm, gstPercent: e.target.value })}
+                      className="w-full px-4 py-3 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
+                      placeholder="18"
+                    />
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-[#1A4D3E] font-semibold mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    value={productForm.description}
+                    onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
+                    rows="3"
+                    className="w-full px-4 py-3 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
+                    placeholder="Product description"
+                  />
+                </div>
+
+                {/* Sizes */}
+                <div>
+                  <label className="block text-[#1A4D3E] font-semibold mb-3">
+                    Available Sizes
+                  </label>
+                  <div className="flex flex-wrap gap-3">
+                    {availableSizes.map(size => (
+                      <button
+                        key={size}
+                        type="button"
+                        onClick={() => toggleSize(size)}
+                        className={`px-4 py-2 rounded-xl border-2 transition-all ${
+                          productForm.sizes.includes(size)
+                            ? 'bg-[#8BC34A] border-[#5A9E4E] text-white'
+                            : 'bg-white border-[#D0E0C0] text-[#1A4D3E] hover:border-[#8BC34A]'
+                        }`}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Colors */}
+                <div>
+                  <label className="block text-[#1A4D3E] font-semibold mb-3">
+                    Available Colors
+                  </label>
+                  <div className="flex flex-wrap gap-3">
+                    {availableColors.map(color => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => toggleColor(color)}
+                        className={`px-4 py-2 rounded-xl border-2 transition-all ${
+                          productForm.colors.includes(color)
+                            ? 'bg-[#8BC34A] border-[#5A9E4E] text-white'
+                            : 'bg-white border-[#D0E0C0] text-[#1A4D3E] hover:border-[#8BC34A]'
+                        }`}
+                      >
+                        {color}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Custom Colors Section */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="block text-[#1A4D3E] font-semibold">
+                      Custom Colors
+                    </label>
+                    <button
+                      type="button"
+                      onClick={addCustomColor}
+                      className="px-3 py-1.5 bg-[#8BC34A] text-white rounded-xl text-sm flex items-center gap-1 hover:bg-[#5A9E4E] transition-colors"
+                    >
+                      <FaPlus size={12} /> Add Custom Color
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {customColors.map((color, index) => (
+                      <div key={index} className="border border-[#D0E0C0] rounded-xl p-4 bg-[#F5F9F0]">
+                        <div className="flex items-center gap-4 mb-3">
+                          <div className="flex-1">
+                            <input
+                              type="text"
+                              value={color.name}
+                              onChange={(e) => {
+                                const updated = [...customColors];
+                                updated[index].name = e.target.value;
+                                setCustomColors(updated);
+                              }}
+                              placeholder="Color name (e.g., Ocean Blue)"
+                              className="w-full px-3 py-2 bg-white border border-[#D0E0C0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#8BC34A]"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={color.hexCode}
+                              onChange={(e) => {
+                                const updated = [...customColors];
+                                updated[index].hexCode = e.target.value;
+                                setCustomColors(updated);
+                              }}
+                              className="w-10 h-10 rounded-lg border border-[#D0E0C0] cursor-pointer"
+                            />
+                            <span className="text-sm text-[#8A9B6E]">{color.hexCode}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeCustomColor(index)}
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <FaTrash />
+                          </button>
+                        </div>
+                        
+                        {/* Custom Color Images */}
+                        <div>
+                          <label className="block text-[#1A4D3E] text-sm font-semibold mb-2">
+                            Images for {color.name || 'this color'}
+                          </label>
+                          <div className="border-2 border-dashed border-[#D0E0C0] rounded-xl p-3 text-center bg-white">
+                            <input
+                              type="file"
+                              multiple
+                              accept="image/*"
+                              onChange={(e) => {
+                                const files = Array.from(e.target.files);
+                                const updated = [...customColors];
+                                updated[index].images = [...updated[index].images, ...files];
+                                setCustomColors(updated);
+                              }}
+                              className="hidden"
+                              id={`custom-color-images-${index}`}
+                            />
+                            <label
+                              htmlFor={`custom-color-images-${index}`}
+                              className="cursor-pointer flex flex-col items-center"
+                            >
+                              <FaImage className="text-2xl text-[#8A9B6E] mb-1" />
+                              <span className="text-sm text-[#8A9B6E]">Upload images</span>
+                            </label>
+                          </div>
+                          {color.images?.length > 0 && (
+                            <div className="mt-2 flex gap-2 flex-wrap">
+                              {color.images.map((img, imgIndex) => (
+                                <div key={imgIndex} className="relative w-16 h-16 bg-gray-100 rounded-lg overflow-hidden">
+                                  {img instanceof File ? (
+                                    <img
+                                      src={URL.createObjectURL(img)}
+                                      alt={`${color.name} ${imgIndex + 1}`}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                      <FaImage className="text-gray-400" />
+                                    </div>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const updated = [...customColors];
+                                      updated[index].images = updated[index].images.filter((_, i) => i !== imgIndex);
+                                      setCustomColors(updated);
+                                    }}
+                                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 text-xs"
+                                  >
+                                    <FaTimes size={10} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Main Product Images */}
+                <div>
+                  <label className="block text-[#1A4D3E] font-semibold mb-2">
+                    Product Images
+                  </label>
+                  <div className="border-2 border-dashed border-[#D0E0C0] rounded-2xl p-6 text-center bg-[#F5F9F0]">
+                    <FaImage className="text-3xl text-[#8A9B6E] mx-auto mb-3" />
+                    <p className="text-[#1A4D3E] mb-3">Drag & drop images or click to browse</p>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      id="product-images"
+                    />
+                    <label
+                      htmlFor="product-images"
+                      className="inline-block bg-[#8BC34A] text-white px-6 py-2 rounded-xl cursor-pointer hover:bg-[#5A9E4E] transition-colors"
+                    >
+                      Browse Files
+                    </label>
+                  </div>
+                  
+                  {productForm.images.length > 0 && (
+                    <div className="mt-4 grid grid-cols-4 gap-4">
+                      {productForm.images.map((img, index) => (
+                        <div key={index} className="relative group">
+                          <div className="aspect-square bg-[#F5F9F0] rounded-xl border border-[#D0E0C0] flex items-center justify-center overflow-hidden">
+                            {img instanceof File ? (
+                              <img
+                                src={URL.createObjectURL(img)}
+                                alt={`Product ${index + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <FaImage className="text-2xl text-[#8A9B6E]" />
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeImage(index)}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <FaTimes size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Featured Checkbox */}
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="isFeatured"
+                    checked={productForm.isFeatured}
+                    onChange={(e) => setProductForm({ ...productForm, isFeatured: e.target.checked })}
+                    className="w-5 h-5 text-[#8BC34A] bg-white border-[#D0E0C0] rounded focus:ring-[#8BC34A]"
+                  />
+                  <label htmlFor="isFeatured" className="text-[#1A4D3E] font-semibold">
+                    Feature this product
+                  </label>
+                </div>
+
+                {/* Form Actions */}
+                <div className="sticky bottom-0 bg-white pt-4 border-t border-[#D0E0C0] flex flex-col md:flex-row gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddModal(false)}
+                    className="flex-1 px-6 py-3 border border-[#D0E0C0] text-[#1A4D3E] rounded-xl hover:bg-[#F5F9F0] transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 bg-gradient-to-r from-[#8BC34A] to-[#5A9E4E] text-white px-6 py-3 rounded-xl font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        Adding...
+                      </>
+                    ) : (
+                      <>
+                        <FaSave />
+                        Add Product
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* View Product Modal */}
       <AnimatePresence>
         {showViewModal && viewingProduct && (
@@ -1136,7 +1872,7 @@ const ProductManagement = () => {
                         viewingProduct.imageUrls.map((url, index) => (
                           <div key={index} className="aspect-square rounded-xl overflow-hidden border border-[#D0E0C0]">
                             <img
-                              src={`${process.env.NEXT_PUBLIC_API}${url}`}
+                              src={url.startsWith('/uploads') ? `${process.env.NEXT_PUBLIC_API}${url}` : url}
                               alt={`${viewingProduct.name} - ${index + 1}`}
                               className="w-full h-full object-cover"
                             />
@@ -1148,39 +1884,6 @@ const ProductManagement = () => {
                         </div>
                       )}
                     </div>
-
-                    {/* Custom Colors with Images */}
-                    {viewingProduct.customColors && viewingProduct.customColors.length > 0 && (
-                      <div className="mt-6">
-                        <h4 className="font-semibold text-[#1A4D3E] mb-3">Custom Colors</h4>
-                        <div className="space-y-4">
-                          {viewingProduct.customColors.map((color, idx) => (
-                            <div key={idx} className="border border-[#D0E0C0] rounded-xl p-3">
-                              <div className="flex items-center gap-2 mb-2">
-                                <div 
-                                  className="w-6 h-6 rounded-full border border-[#D0E0C0]"
-                                  style={{ backgroundColor: color.hexCode }}
-                                />
-                                <span className="font-medium text-[#1A4D3E]">{color.name}</span>
-                              </div>
-                              {color.images && color.images.length > 0 && (
-                                <div className="grid grid-cols-3 gap-2 mt-2">
-                                  {color.images.map((img, imgIdx) => (
-                                    <div key={imgIdx} className="aspect-square rounded-lg overflow-hidden border border-[#D0E0C0]">
-                                      <img
-                                        src={img.startsWith('/uploads') ? `${process.env.NEXT_PUBLIC_API}${img}` : img}
-                                        alt={`${color.name} ${imgIdx + 1}`}
-                                        className="w-full h-full object-cover"
-                                      />
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                   {/* Product Information */}
@@ -1196,20 +1899,8 @@ const ProductManagement = () => {
                         <p className="text-lg font-semibold text-[#1A4D3E]">₹{viewingProduct.price}</p>
                       </div>
                       <div className="bg-[#F5F9F0] rounded-xl p-3">
-                        <p className="text-xs text-[#8A9B6E]">Offer Price</p>
+                        <p className="text-xs text-[#8A9B6E]">Discounted Price</p>
                         <p className="text-lg font-semibold text-[#FF8C42]">₹{viewingProduct.discountedPrice || viewingProduct.price}</p>
-                      </div>
-                      <div className="bg-[#F5F9F0] rounded-xl p-3">
-                        <p className="text-xs text-[#8A9B6E]">Offer Percentage</p>
-                        <p className="text-lg font-semibold text-green-600">{viewingProduct.offerPercent || 0}% OFF</p>
-                      </div>
-                      <div className="bg-[#F5F9F0] rounded-xl p-3">
-                        <p className="text-xs text-[#8A9B6E]">Total Price (incl. GST)</p>
-                        <p className="text-lg font-semibold text-[#1A4D3E]">₹{viewingProduct.totalPrice}</p>
-                      </div>
-                      <div className="bg-[#F5F9F0] rounded-xl p-3">
-                        <p className="text-xs text-[#8A9B6E]">GST</p>
-                        <p className="text-lg font-semibold text-[#1A4D3E]">{viewingProduct.gstPercent}% (₹{viewingProduct.gstAmount})</p>
                       </div>
                       <div className="bg-[#F5F9F0] rounded-xl p-3">
                         <p className="text-xs text-[#8A9B6E]">Stock</p>
@@ -1221,17 +1912,18 @@ const ProductManagement = () => {
                         <p className="text-xs text-[#8A9B6E]">Weight</p>
                         <p className="text-lg font-semibold text-[#1A4D3E]">{viewingProduct.weight} kg</p>
                       </div>
-                      <div className="bg-[#F5F9F0] rounded-xl p-3">
-                        <p className="text-xs text-[#8A9B6E]">Rating</p>
-                        <p className="text-lg font-semibold text-[#1A4D3E] flex items-center gap-1">
-                          {viewingProduct.rating || 0} <FaStar className="text-yellow-400 text-sm" />
-                        </p>
-                      </div>
                     </div>
 
                     <div className="border-t border-[#D0E0C0] pt-4">
-                      <h4 className="font-semibold text-[#1A4D3E] mb-2">Category</h4>
-                      <p className="text-[#5A7A4C]">{viewingProduct.category} / {viewingProduct.subcategory}</p>
+                      <h4 className="font-semibold text-[#1A4D3E] mb-2">Category Details</h4>
+                      <div className="space-y-1">
+                        <p className="text-[#5A7A4C]"><span className="font-medium">Category:</span> {viewingProduct.category}</p>
+                        <p className="text-[#5A7A4C]"><span className="font-medium">Subcategory:</span> {viewingProduct.subcategory}</p>
+                        <p className="text-[#5A7A4C]"><span className="font-medium">Product Type:</span> {viewingProduct.productType}</p>
+                        {viewingProduct.fabricType && (
+                          <p className="text-[#5A7A4C]"><span className="font-medium">Fabric Type:</span> {viewingProduct.fabricType}</p>
+                        )}
+                      </div>
                     </div>
 
                     <div className="border-t border-[#D0E0C0] pt-4">
@@ -1261,25 +1953,6 @@ const ProductManagement = () => {
                         ) : (
                           <span className="text-[#8A9B6E]">No colors specified</span>
                         )}
-                      </div>
-                    </div>
-
-                    <div className="border-t border-[#D0E0C0] pt-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <h4 className="font-semibold text-[#1A4D3E] mb-2 flex items-center gap-1">
-                            <FaCalendarAlt className="text-[#8A9B6E]" />
-                            Created
-                          </h4>
-                          <p className="text-sm text-[#5A7A4C]">{formatDate(viewingProduct.createdAt)}</p>
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-[#1A4D3E] mb-2 flex items-center gap-1">
-                            <FaChartBar className="text-[#8A9B6E]" />
-                            Views
-                          </h4>
-                          <p className="text-sm text-[#5A7A4C]">{viewingProduct.views || 0} views</p>
-                        </div>
                       </div>
                     </div>
 
@@ -1317,10 +1990,12 @@ const ProductManagement = () => {
           </div>
         )}
       </AnimatePresence>
-      {/* Add Product Modal - Keep existing JSX but update form fields to include customColors */}
-      {/* Add Product Modal */}
+
+      {/* Edit Product Modal - Similar structure to Add Product but with existing values */}
+      {/* ... (similar to Add Product Modal with pre-filled values) */}
+{/* Edit Product Modal */}
 <AnimatePresence>
-  {showAddModal && (
+  {showEditModal && editingProduct && (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
@@ -1330,9 +2005,13 @@ const ProductManagement = () => {
       >
         <div className="sticky top-0 bg-white z-10 p-6 border-b border-[#D0E0C0]">
           <div className="flex items-center justify-between">
-            <h3 className="text-2xl font-bold text-[#1A4D3E]">Add New Product</h3>
+            <h3 className="text-2xl font-bold text-[#1A4D3E]">Edit Product</h3>
             <button
-              onClick={() => setShowAddModal(false)}
+              onClick={() => {
+                setShowEditModal(false);
+                setEditingProduct(null);
+                resetForm();
+              }}
               className="p-2 hover:bg-[#F5F9F0] rounded-xl transition-colors"
             >
               <FaTimes className="text-[#8A9B6E]" />
@@ -1340,7 +2019,7 @@ const ProductManagement = () => {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={updateProduct} className="p-6 space-y-6">
           {/* Basic Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -1363,13 +2042,20 @@ const ProductManagement = () => {
               </label>
               <select
                 required
-                value={productForm.category}
-                onChange={(e) => setProductForm({ ...productForm, category: e.target.value, subcategory: '' })}
+                value={productForm.categoryId}
+                onChange={(e) => {
+                  setProductForm({ 
+                    ...productForm, 
+                    categoryId: e.target.value, 
+                    subcategoryId: '',
+                    productTypeId: '' 
+                  });
+                }}
                 className="w-full px-4 py-3 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
               >
                 <option value="">Select Category</option>
-                {Object.keys(categories).map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
+                {categories.map(cat => (
+                  <option key={cat._id} value={cat._id}>{cat.name}</option>
                 ))}
               </select>
             </div>
@@ -1380,14 +2066,54 @@ const ProductManagement = () => {
               </label>
               <select
                 required
-                value={productForm.subcategory}
-                onChange={(e) => setProductForm({ ...productForm, subcategory: e.target.value })}
-                disabled={!productForm.category}
+                value={productForm.subcategoryId}
+                onChange={(e) => {
+                  setProductForm({ 
+                    ...productForm, 
+                    subcategoryId: e.target.value,
+                    productTypeId: '' 
+                  });
+                }}
+                disabled={!productForm.categoryId}
                 className="w-full px-4 py-3 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] disabled:opacity-50"
               >
                 <option value="">Select Subcategory</option>
-                {productForm.category && categories[productForm.category]?.map(sub => (
-                  <option key={sub} value={sub}>{sub}</option>
+                {productForm.categoryId && getSubcategoriesForCategory(productForm.categoryId).map(sub => (
+                  <option key={sub._id} value={sub._id}>{sub.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[#1A4D3E] font-semibold mb-2">
+                Product Type *
+              </label>
+              <select
+                required
+                value={productForm.productTypeId}
+                onChange={(e) => setProductForm({ ...productForm, productTypeId: e.target.value })}
+                disabled={!productForm.subcategoryId}
+                className="w-full px-4 py-3 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] disabled:opacity-50"
+              >
+                <option value="">Select Product Type</option>
+                {productForm.subcategoryId && getProductTypesForSubcategory(productForm.subcategoryId).map(type => (
+                  <option key={type._id} value={type._id}>{type.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[#1A4D3E] font-semibold mb-2">
+                Fabric Type
+              </label>
+              <select
+                value={productForm.fabricTypeId}
+                onChange={(e) => setProductForm({ ...productForm, fabricTypeId: e.target.value })}
+                className="w-full px-4 py-3 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
+              >
+                <option value="">Select Fabric Type</option>
+                {fabricTypes.map(fabric => (
+                  <option key={fabric._id} value={fabric._id}>{fabric.name}</option>
                 ))}
               </select>
             </div>
@@ -1600,14 +2326,14 @@ const ProductManagement = () => {
                           setCustomColors(updated);
                         }}
                         className="hidden"
-                        id={`custom-color-images-${index}`}
+                        id={`edit-custom-color-images-${index}`}
                       />
                       <label
-                        htmlFor={`custom-color-images-${index}`}
+                        htmlFor={`edit-custom-color-images-${index}`}
                         className="cursor-pointer flex flex-col items-center"
                       >
                         <FaImage className="text-2xl text-[#8A9B6E] mb-1" />
-                        <span className="text-sm text-[#8A9B6E]">Upload images</span>
+                        <span className="text-sm text-[#8A9B6E]">Upload new images</span>
                       </label>
                     </div>
                     {color.images?.length > 0 && (
@@ -1646,10 +2372,49 @@ const ProductManagement = () => {
             </div>
           </div>
 
-          {/* Main Product Images */}
+          {/* Existing Images Display */}
+          {editingProduct.imageUrls && editingProduct.imageUrls.length > 0 && (
+            <div>
+              <label className="block text-[#1A4D3E] font-semibold mb-2">
+                Existing Images
+              </label>
+              <div className="grid grid-cols-4 gap-3">
+                {editingProduct.imageUrls.map((url, index) => (
+                  <div key={index} className="relative group">
+                    <div className="aspect-square bg-[#F5F9F0] rounded-xl border border-[#D0E0C0] overflow-hidden">
+                      <img
+                        src={url.startsWith('/uploads') ? `${process.env.NEXT_PUBLIC_API}${url}` : url}
+                        alt={`Existing product ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Mark image for deletion
+                        const updatedProduct = { ...productForm };
+                        updatedProduct.existingImagesToDelete = updatedProduct.existingImagesToDelete || [];
+                        updatedProduct.existingImagesToDelete.push(url);
+                        setProductForm(updatedProduct);
+                        
+                        // Remove from display
+                        editingProduct.imageUrls.splice(index, 1);
+                        setEditingProduct({ ...editingProduct });
+                      }}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <FaTimes size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* New Product Images */}
           <div>
             <label className="block text-[#1A4D3E] font-semibold mb-2">
-              Product Images
+              Add New Images
             </label>
             <div className="border-2 border-dashed border-[#D0E0C0] rounded-2xl p-6 text-center bg-[#F5F9F0]">
               <FaImage className="text-3xl text-[#8A9B6E] mx-auto mb-3" />
@@ -1660,10 +2425,10 @@ const ProductManagement = () => {
                 accept="image/*"
                 onChange={handleImageUpload}
                 className="hidden"
-                id="product-images"
+                id="edit-product-images"
               />
               <label
-                htmlFor="product-images"
+                htmlFor="edit-product-images"
                 className="inline-block bg-[#8BC34A] text-white px-6 py-2 rounded-xl cursor-pointer hover:bg-[#5A9E4E] transition-colors"
               >
                 Browse Files
@@ -1702,459 +2467,6 @@ const ProductManagement = () => {
           <div className="flex items-center gap-3">
             <input
               type="checkbox"
-              id="isFeatured"
-              checked={productForm.isFeatured}
-              onChange={(e) => setProductForm({ ...productForm, isFeatured: e.target.checked })}
-              className="w-5 h-5 text-[#8BC34A] bg-white border-[#D0E0C0] rounded focus:ring-[#8BC34A]"
-            />
-            <label htmlFor="isFeatured" className="text-[#1A4D3E] font-semibold">
-              Feature this product
-            </label>
-          </div>
-
-          {/* Form Actions */}
-          <div className="sticky bottom-0 bg-white pt-4 border-t border-[#D0E0C0] flex flex-col md:flex-row gap-4">
-            <button
-              type="button"
-              onClick={() => setShowAddModal(false)}
-              className="flex-1 px-6 py-3 border border-[#D0E0C0] text-[#1A4D3E] rounded-xl hover:bg-[#F5F9F0] transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 bg-gradient-to-r from-[#8BC34A] to-[#5A9E4E] text-white px-6 py-3 rounded-xl font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  Adding...
-                </>
-              ) : (
-                <>
-                  <FaSave />
-                  Add Product
-                </>
-              )}
-            </button>
-          </div>
-        </form>
-      </motion.div>
-    </div>
-  )}
-</AnimatePresence>
-
-      {/* Edit Product Modal - Keep existing JSX */}
-       {/* Edit Product Modal */}
-<AnimatePresence>
-  {showEditModal && (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        className="bg-white rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-y-auto"
-      >
-        <div className="sticky top-0 bg-white z-10 p-6 border-b border-[#D0E0C0]">
-          <div className="flex items-center justify-between">
-            <h3 className="text-2xl font-bold text-[#1A4D3E]">Edit Product</h3>
-            <button
-              onClick={() => {
-                setShowEditModal(false);
-                setEditingProduct(null);
-                resetForm();
-              }}
-              className="p-2 hover:bg-[#F5F9F0] rounded-xl transition-colors"
-            >
-              <FaTimes className="text-[#8A9B6E]" />
-            </button>
-          </div>
-        </div>
-
-        <form onSubmit={updateProduct} className="p-6 space-y-6">
-          {/* Basic Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-[#1A4D3E] font-semibold mb-2">
-                Product Name *
-              </label>
-              <input
-                type="text"
-                required
-                value={productForm.name}
-                onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
-                className="w-full px-4 py-3 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
-                placeholder="Enter product name"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[#1A4D3E] font-semibold mb-2">
-                Category *
-              </label>
-              <select
-                required
-                value={productForm.category}
-                onChange={(e) => setProductForm({ ...productForm, category: e.target.value, subcategory: '' })}
-                className="w-full px-4 py-3 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
-              >
-                <option value="">Select Category</option>
-                {Object.keys(categories).map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-[#1A4D3E] font-semibold mb-2">
-                Subcategory *
-              </label>
-              <select
-                required
-                value={productForm.subcategory}
-                onChange={(e) => setProductForm({ ...productForm, subcategory: e.target.value })}
-                disabled={!productForm.category}
-                className="w-full px-4 py-3 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] disabled:opacity-50"
-              >
-                <option value="">Select Subcategory</option>
-                {productForm.category && categories[productForm.category]?.map(sub => (
-                  <option key={sub} value={sub}>{sub}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-[#1A4D3E] font-semibold mb-2">
-                Price (₹) *
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                required
-                value={productForm.price}
-                onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
-                className="w-full px-4 py-3 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
-                placeholder="0.00"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[#1A4D3E] font-semibold mb-2">
-                Offer Percentage (%)
-              </label>
-              <input
-                type="number"
-                step="1"
-                min="0"
-                max="100"
-                value={productForm.offerPercent}
-                onChange={(e) => setProductForm({ ...productForm, offerPercent: e.target.value })}
-                className="w-full px-4 py-3 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
-                placeholder="0"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[#1A4D3E] font-semibold mb-2">
-                Stock *
-              </label>
-              <input
-                type="number"
-                required
-                min="0"
-                value={productForm.stock}
-                onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })}
-                className="w-full px-4 py-3 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
-                placeholder="0"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[#1A4D3E] font-semibold mb-2">
-                Weight (kg) *
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                required
-                value={productForm.weight}
-                onChange={(e) => setProductForm({ ...productForm, weight: e.target.value })}
-                className="w-full px-4 py-3 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
-                placeholder="0.5"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[#1A4D3E] font-semibold mb-2">
-                GST (%)
-              </label>
-              <input
-                type="number"
-                min="0"
-                max="28"
-                value={productForm.gstPercent}
-                onChange={(e) => setProductForm({ ...productForm, gstPercent: e.target.value })}
-                className="w-full px-4 py-3 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
-                placeholder="18"
-              />
-            </div>
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-[#1A4D3E] font-semibold mb-2">
-              Description
-            </label>
-            <textarea
-              value={productForm.description}
-              onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
-              rows="3"
-              className="w-full px-4 py-3 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
-              placeholder="Product description"
-            />
-          </div>
-
-          {/* Sizes */}
-          <div>
-            <label className="block text-[#1A4D3E] font-semibold mb-3">
-              Available Sizes
-            </label>
-            <div className="flex flex-wrap gap-3">
-              {availableSizes.map(size => (
-                <button
-                  key={size}
-                  type="button"
-                  onClick={() => toggleSize(size)}
-                  className={`px-4 py-2 rounded-xl border-2 transition-all ${
-                    productForm.sizes.includes(size)
-                      ? 'bg-[#8BC34A] border-[#5A9E4E] text-white'
-                      : 'bg-white border-[#D0E0C0] text-[#1A4D3E] hover:border-[#8BC34A]'
-                  }`}
-                >
-                  {size}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Colors */}
-          <div>
-            <label className="block text-[#1A4D3E] font-semibold mb-3">
-              Available Colors
-            </label>
-            <div className="flex flex-wrap gap-3">
-              {availableColors.map(color => (
-                <button
-                  key={color}
-                  type="button"
-                  onClick={() => toggleColor(color)}
-                  className={`px-4 py-2 rounded-xl border-2 transition-all ${
-                    productForm.colors.includes(color)
-                      ? 'bg-[#8BC34A] border-[#5A9E4E] text-white'
-                      : 'bg-white border-[#D0E0C0] text-[#1A4D3E] hover:border-[#8BC34A]'
-                  }`}
-                >
-                  {color}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Custom Colors Section */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <label className="block text-[#1A4D3E] font-semibold">
-                Custom Colors
-              </label>
-              <button
-                type="button"
-                onClick={addCustomColor}
-                className="px-3 py-1.5 bg-[#8BC34A] text-white rounded-xl text-sm flex items-center gap-1 hover:bg-[#5A9E4E] transition-colors"
-              >
-                <FaPlus size={12} /> Add Custom Color
-              </button>
-            </div>
-            
-            <div className="space-y-3">
-              {customColors.map((color, index) => (
-                <div key={index} className="border border-[#D0E0C0] rounded-xl p-4 bg-[#F5F9F0]">
-                  <div className="flex items-center gap-4 mb-3">
-                    <div className="flex-1">
-                      <input
-                        type="text"
-                        value={color.name}
-                        onChange={(e) => {
-                          const updated = [...customColors];
-                          updated[index].name = e.target.value;
-                          setCustomColors(updated);
-                        }}
-                        placeholder="Color name (e.g., Ocean Blue)"
-                        className="w-full px-3 py-2 bg-white border border-[#D0E0C0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#8BC34A]"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={color.hexCode}
-                        onChange={(e) => {
-                          const updated = [...customColors];
-                          updated[index].hexCode = e.target.value;
-                          setCustomColors(updated);
-                        }}
-                        className="w-10 h-10 rounded-lg border border-[#D0E0C0] cursor-pointer"
-                      />
-                      <span className="text-sm text-[#8A9B6E]">{color.hexCode}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeCustomColor(index)}
-                      className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <FaTrash />
-                    </button>
-                  </div>
-                  
-                  {/* Display existing custom color images */}
-                  {color.images && color.images.length > 0 && (
-                    <div className="mb-3">
-                      <label className="block text-[#1A4D3E] text-sm font-semibold mb-2">
-                        Current Images
-                      </label>
-                      <div className="flex gap-2 flex-wrap">
-                        {color.images.map((img, imgIndex) => (
-                          <div key={imgIndex} className="relative w-16 h-16 bg-gray-100 rounded-lg overflow-hidden">
-                            <img
-                              src={img.startsWith('/uploads') ? `${process.env.NEXT_PUBLIC_API}${img}` : URL.createObjectURL(img)}
-                              alt={`${color.name} ${imgIndex + 1}`}
-                              className="w-full h-full object-cover"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const updated = [...customColors];
-                                updated[index].images = updated[index].images.filter((_, i) => i !== imgIndex);
-                                setCustomColors(updated);
-                              }}
-                              className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 text-xs"
-                            >
-                              <FaTimes size={10} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Add new images for custom color */}
-                  <div>
-                    <label className="block text-[#1A4D3E] text-sm font-semibold mb-2">
-                      Add New Images
-                    </label>
-                    <div className="border-2 border-dashed border-[#D0E0C0] rounded-xl p-3 text-center bg-white">
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/*"
-                        onChange={(e) => {
-                          const files = Array.from(e.target.files);
-                          const updated = [...customColors];
-                          updated[index].images = [...updated[index].images, ...files];
-                          setCustomColors(updated);
-                        }}
-                        className="hidden"
-                        id={`edit-custom-color-images-${index}`}
-                      />
-                      <label
-                        htmlFor={`edit-custom-color-images-${index}`}
-                        className="cursor-pointer flex flex-col items-center"
-                      >
-                        <FaUpload className="text-xl text-[#8A9B6E] mb-1" />
-                        <span className="text-sm text-[#8A9B6E]">Upload new images</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Current Product Images */}
-          {editingProduct?.imageUrls && editingProduct.imageUrls.length > 0 && (
-            <div>
-              <label className="block text-[#1A4D3E] font-semibold mb-2">
-                Current Product Images
-              </label>
-              <div className="flex gap-2 flex-wrap">
-                {editingProduct.imageUrls.map((url, index) => (
-                  <div key={index} className="relative w-20 h-20 bg-gray-100 rounded-lg overflow-hidden border border-[#D0E0C0]">
-                    <img
-                      src={`${process.env.NEXT_PUBLIC_API}${url}`}
-                      alt={`Product ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Add New Product Images */}
-          <div>
-            <label className="block text-[#1A4D3E] font-semibold mb-2">
-              Add New Images
-            </label>
-            <div className="border-2 border-dashed border-[#D0E0C0] rounded-2xl p-6 text-center bg-[#F5F9F0]">
-              <FaUpload className="text-3xl text-[#8A9B6E] mx-auto mb-3" />
-              <p className="text-[#1A4D3E] mb-3">Drag & drop images or click to browse</p>
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-                id="edit-product-images"
-              />
-              <label
-                htmlFor="edit-product-images"
-                className="inline-block bg-[#8BC34A] text-white px-6 py-2 rounded-xl cursor-pointer hover:bg-[#5A9E4E] transition-colors"
-              >
-                Browse Files
-              </label>
-            </div>
-            
-            {productForm.images.length > 0 && (
-              <div className="mt-4 grid grid-cols-4 gap-4">
-                {productForm.images.map((img, index) => (
-                  <div key={index} className="relative group">
-                    <div className="aspect-square bg-[#F5F9F0] rounded-xl border border-[#D0E0C0] flex items-center justify-center overflow-hidden">
-                      {img instanceof File ? (
-                        <img
-                          src={URL.createObjectURL(img)}
-                          alt={`New ${index + 1}`}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <FaImage className="text-2xl text-[#8A9B6E]" />
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeImage(index)}
-                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <FaTimes size={12} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Featured Checkbox */}
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
               id="edit-isFeatured"
               checked={productForm.isFeatured}
               onChange={(e) => setProductForm({ ...productForm, isFeatured: e.target.checked })}
@@ -2163,23 +2475,6 @@ const ProductManagement = () => {
             <label htmlFor="edit-isFeatured" className="text-[#1A4D3E] font-semibold">
               Feature this product
             </label>
-          </div>
-
-          {/* Rating */}
-          <div>
-            <label className="block text-[#1A4D3E] font-semibold mb-2">
-              Rating (0-5)
-            </label>
-            <input
-              type="number"
-              step="0.1"
-              min="0"
-              max="5"
-              value={productForm.rating}
-              onChange={(e) => setProductForm({ ...productForm, rating: e.target.value })}
-              className="w-full px-4 py-3 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
-              placeholder="0"
-            />
           </div>
 
           {/* Form Actions */}
@@ -2218,721 +2513,544 @@ const ProductManagement = () => {
     </div>
   )}
 </AnimatePresence>
-      {/* Bulk Upload Modal - Keep existing JSX but update API calls */}
-    {/* Bulk Upload Modal */}
-<AnimatePresence>
-  {showBulkModal && (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        className="bg-white rounded-3xl w-full max-w-6xl max-h-[90vh] overflow-y-auto"
-      >
-        <div className="sticky top-0 bg-white z-10 p-6 border-b border-[#D0E0C0]">
-          <div className="flex items-center justify-between">
-            <h3 className="text-2xl font-bold text-[#1A4D3E]">Bulk Product Upload</h3>
-            <button
-              onClick={() => {
-                setShowBulkModal(false);
-                setBulkProducts([createEmptyProduct()]);
-                setSelectedFiles([]);
-              }}
-              className="p-2 hover:bg-[#F5F9F0] rounded-xl transition-colors"
-            >
-              <FaTimes className="text-[#8A9B6E]" />
-            </button>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex gap-4 mt-4">
-            <button
-              onClick={() => setActiveTab('manual')}
-              className={`px-4 py-2 rounded-xl font-semibold transition-colors ${
-                activeTab === 'manual'
-                  ? 'bg-[#8BC34A] text-white'
-                  : 'bg-[#F5F9F0] text-[#1A4D3E]'
-              }`}
-            >
-              Manual Entry
-            </button>
-            <button
-              onClick={() => setActiveTab('excel')}
-              className={`px-4 py-2 rounded-xl font-semibold transition-colors ${
-                activeTab === 'excel'
-                  ? 'bg-[#8BC34A] text-white'
-                  : 'bg-[#F5F9F0] text-[#1A4D3E]'
-              }`}
-            >
-              Excel/CSV Upload
-            </button>
-          </div>
-        </div>
-
-        <div className="p-6">
-          {activeTab === 'manual' ? (
-            <form onSubmit={addBulkProducts} className="space-y-6">
-              <div className="space-y-6 max-h-96 overflow-y-auto pr-2">
-                {bulkProducts.map((product, index) => (
-                  <div
-                    key={index}
-                    className="bg-[#F5F9F0] rounded-2xl p-6 border-2 border-[#D0E0C0]"
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-lg font-bold text-[#1A4D3E]">
-                        Product {index + 1}
-                      </h4>
-                      {bulkProducts.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeBulkProductRow(index)}
-                          className="text-red-500 hover:text-red-700 p-2"
-                        >
-                          <FaTimes />
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-[#1A4D3E] font-semibold mb-2 text-sm">
-                          Name *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={product.name}
-                          onChange={(e) => updateBulkProduct(index, 'name', e.target.value)}
-                          className="w-full px-3 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] text-sm"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[#1A4D3E] font-semibold mb-2 text-sm">
-                          Category *
-                        </label>
-                        <select
-                          required
-                          value={product.category}
-                          onChange={(e) => updateBulkProduct(index, 'category', e.target.value)}
-                          className="w-full px-3 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] text-sm"
-                        >
-                          <option value="">Select</option>
-                          {Object.keys(categories).map(cat => (
-                            <option key={cat} value={cat}>{cat}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-[#1A4D3E] font-semibold mb-2 text-sm">
-                          Subcategory *
-                        </label>
-                        <select
-                          required
-                          value={product.subcategory}
-                          onChange={(e) => updateBulkProduct(index, 'subcategory', e.target.value)}
-                          className="w-full px-3 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] text-sm"
-                        >
-                          <option value="">Select</option>
-                          {product.category && categories[product.category]?.map(sub => (
-                            <option key={sub} value={sub}>{sub}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-[#1A4D3E] font-semibold mb-2 text-sm">
-                          Price (₹) *
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          required
-                          value={product.price}
-                          onChange={(e) => updateBulkProduct(index, 'price', e.target.value)}
-                          className="w-full px-3 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] text-sm"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[#1A4D3E] font-semibold mb-2 text-sm">
-                          Offer %
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={product.offerPercent}
-                          onChange={(e) => updateBulkProduct(index, 'offerPercent', e.target.value)}
-                          className="w-full px-3 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] text-sm"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[#1A4D3E] font-semibold mb-2 text-sm">
-                          Stock *
-                        </label>
-                        <input
-                          type="number"
-                          required
-                          min="0"
-                          value={product.stock}
-                          onChange={(e) => updateBulkProduct(index, 'stock', e.target.value)}
-                          className="w-full px-3 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] text-sm"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[#1A4D3E] font-semibold mb-2 text-sm">
-                          Weight (kg)
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={product.weight}
-                          onChange={(e) => updateBulkProduct(index, 'weight', e.target.value)}
-                          className="w-full px-3 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] text-sm"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[#1A4D3E] font-semibold mb-2 text-sm">
-                          GST (%)
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          max="28"
-                          value={product.gstPercent}
-                          onChange={(e) => updateBulkProduct(index, 'gstPercent', e.target.value)}
-                          className="w-full px-3 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] text-sm"
-                        />
-                      </div>
-
-                      <div className="col-span-3">
-                        <label className="block text-[#1A4D3E] font-semibold mb-2 text-sm">
-                          Sizes (comma separated)
-                        </label>
-                        <input
-                          type="text"
-                          value={product.sizes?.join(', ') || ''}
-                          onChange={(e) => updateBulkProduct(index, 'sizes', e.target.value.split(',').map(s => s.trim()).filter(s => s))}
-                          placeholder="S, M, L, XL"
-                          className="w-full px-3 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] text-sm"
-                        />
-                      </div>
-
-                      <div className="col-span-3">
-                        <label className="block text-[#1A4D3E] font-semibold mb-2 text-sm">
-                          Colors (comma separated)
-                        </label>
-                        <input
-                          type="text"
-                          value={product.colors?.join(', ') || ''}
-                          onChange={(e) => updateBulkProduct(index, 'colors', e.target.value.split(',').map(c => c.trim()).filter(c => c))}
-                          placeholder="Red, Blue, Black"
-                          className="w-full px-3 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] text-sm"
-                        />
-                      </div>
-
-                      <div className="col-span-3">
-                        <label className="block text-[#1A4D3E] font-semibold mb-2 text-sm">
-                          Description
-                        </label>
-                        <textarea
-                          value={product.description}
-                          onChange={(e) => updateBulkProduct(index, 'description', e.target.value)}
-                          rows="2"
-                          className="w-full px-3 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] text-sm"
-                        />
-                      </div>
-
-                      <div className="col-span-3">
-                        <label className="block text-[#1A4D3E] font-semibold mb-2 text-sm">
-                          Images
-                        </label>
-                        <div className="border-2 border-dashed border-[#D0E0C0] rounded-xl p-3 text-center bg-white">
-                          <input
-                            type="file"
-                            multiple
-                            accept="image/*"
-                            onChange={(e) => handleBulkProductImage(index, e.target.files)}
-                            className="hidden"
-                            id={`bulk-product-images-${index}`}
-                          />
-                          <label
-                            htmlFor={`bulk-product-images-${index}`}
-                            className="cursor-pointer flex flex-col items-center"
-                          >
-                            <FaUpload className="text-xl text-[#8A9B6E] mb-1" />
-                            <span className="text-sm text-[#8A9B6E]">Choose images</span>
-                          </label>
-                        </div>
-                        {product.images?.length > 0 && (
-                          <div className="mt-2">
-                            <p className="text-xs text-green-600">{product.images.length} file(s) selected</p>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="col-span-3">
-                        <div className="flex items-center gap-3 mt-2">
-                          <input
-                            type="checkbox"
-                            id={`bulk-isFeatured-${index}`}
-                            checked={product.isFeatured || false}
-                            onChange={(e) => updateBulkProduct(index, 'isFeatured', e.target.checked)}
-                            className="w-4 h-4 text-[#8BC34A] bg-white border-gray-300 rounded focus:ring-[#8BC34A]"
-                          />
-                          <label htmlFor={`bulk-isFeatured-${index}`} className="text-[#1A4D3E] text-sm">
-                            Feature this product
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <button
-                type="button"
-                onClick={addBulkProductRow}
-                className="w-full border-2 border-dashed border-[#D0E0C0] text-[#1A4D3E] py-4 rounded-2xl hover:bg-[#F5F9F0] transition-colors flex items-center justify-center gap-2"
-              >
-                <FaPlus />
-                Add Another Product
-              </button>
-
-              <div className="flex flex-col md:flex-row gap-4 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowBulkModal(false);
-                    setBulkProducts([createEmptyProduct()]);
-                    setSelectedFiles([]);
-                  }}
-                  className="flex-1 px-6 py-3 border border-[#D0E0C0] text-[#1A4D3E] rounded-xl hover:bg-[#F5F9F0] transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 bg-gradient-to-r from-[#8BC34A] to-[#5A9E4E] text-white px-6 py-3 rounded-xl font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {loading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      Adding...
-                    </>
-                  ) : (
-                    `Add ${bulkProducts.length} Product${bulkProducts.length > 1 ? 's' : ''}`
-                  )}
-                </button>
-              </div>
-            </form>
-          ) : (
-            <div className="space-y-6">
-              <div className="bg-[#F5F9F0] rounded-2xl p-6">
-                <h4 className="text-lg font-bold text-[#1A4D3E] mb-4 flex items-center gap-2">
-                  <FaFileExcel className="text-green-600" />
-                  Upload Excel File with Images
-                </h4>
-
-                <div
-                  className={`border-2 border-dashed rounded-2xl p-8 text-center transition-colors ${
-                    dragActive
-                      ? 'border-[#8BC34A] bg-white'
-                      : 'border-[#D0E0C0] bg-white'
-                  }`}
-                  onDragEnter={handleDrag}
-                  onDragLeave={handleDrag}
-                  onDragOver={handleDrag}
-                  onDrop={handleDrop}
-                >
-                  <FaFileExcel className="text-4xl text-green-600 mx-auto mb-2" />
-                  <FaImage className="text-3xl text-blue-600 mx-auto mb-3" />
-                  <p className="text-[#1A4D3E] mb-2 font-semibold">
-                    Drag & drop Excel file + Product Images
-                  </p>
-                  <p className="text-sm text-[#8A9B6E] mb-3">
-                    Upload Excel file along with product images. Image names in Excel should match uploaded files.
-                  </p>
-                  <input
-                    type="file"
-                    multiple
-                    accept=".xlsx,.xls,.csv,image/*"
-                    onChange={(e) => {
-                      const files = Array.from(e.target.files);
-                      setSelectedFiles([...selectedFiles, ...files]);
-                    }}
-                    className="hidden"
-                    id="excel-images-files"
-                  />
-                  <label
-                    htmlFor="excel-images-files"
-                    className="inline-block bg-green-600 text-white px-6 py-3 rounded-2xl cursor-pointer hover:bg-green-700 transition-colors"
-                  >
-                    Choose Excel & Image Files
-                  </label>
-                </div>
-
-                {selectedFiles.length > 0 && (
-                  <div className="mt-4">
-                    <h5 className="text-[#1A4D3E] font-semibold mb-2">
-                      Selected Files:
-                    </h5>
-                    <div className="space-y-2 max-h-32 overflow-y-auto">
-                      {selectedFiles.map((file, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between bg-white p-2 rounded-lg"
-                        >
-                          <div className="flex items-center gap-2">
-                            {file.type.startsWith("image/") ? (
-                              <FaImage className="text-blue-500" />
-                            ) : (
-                              <FaFileExcel className="text-green-500" />
-                            )}
-                            <span className="text-sm text-[#1A4D3E]">
-                              {file.name}
-                            </span>
-                            <span className="text-xs text-[#8A9B6E]">
-                              {(file.size / 1024).toFixed(1)} KB
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => removeFile(index)}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            <FaTimes />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-sm text-[#8A9B6E] mt-2">
-                      Excel files:{" "}
-                      {
-                        selectedFiles.filter(
-                          (f) =>
-                            f.name.endsWith(".xlsx") ||
-                            f.name.endsWith(".xls") ||
-                            f.name.endsWith(".csv")
-                        ).length
-                      }{" "}
-                      | Images:{" "}
-                      {
-                        selectedFiles.filter((f) =>
-                          f.type.startsWith("image/")
-                        ).length
-                      }
-                    </p>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                  <button
-                    onClick={downloadExcelTemplate}
-                    className="bg-[#1A4D3E] text-white py-3 rounded-2xl font-semibold flex items-center justify-center gap-2 hover:bg-[#0F3A2E] transition-colors"
-                  >
-                    <FaDownload />
-                    Download Template
-                  </button>
-
-                  <button
-                    onClick={handleExcelUpload}
-                    disabled={
-                      loading ||
-                      !selectedFiles.find(
-                        (f) =>
-                          f.name.endsWith(".xlsx") ||
-                          f.name.endsWith(".xls") ||
-                          f.name.endsWith(".csv")
-                      )
-                    }
-                    className="bg-gradient-to-r from-[#8BC34A] to-[#5A9E4E] text-white py-3 rounded-2xl font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {loading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <FaUpload />
-                        Upload Excel & Images
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <div className="bg-blue-50 rounded-2xl p-4 border border-blue-200">
-                <h5 className="font-semibold text-blue-800 mb-2">Excel Upload Instructions:</h5>
-                <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
-                  <li>First column headers must match the template exactly</li>
-                  <li>Required columns: name, price, category, subcategory</li>
-                  <li>Sizes should be comma-separated (e.g., "S,M,L,XL")</li>
-                  <li>Colors should be comma-separated (e.g., "Red,Blue,Black")</li>
-                  <li>Images column: Add comma-separated image filenames</li>
-                  <li>Upload images with matching filenames along with Excel file</li>
-                  <li>Set isFeatured to "true" for featured products</li>
-                </ul>
-              </div>
-            </div>
-          )}
-        </div>
-      </motion.div>
-    </div>
-  )}
-</AnimatePresence>
-      {/* Category Management Modal - Keep existing JSX but update with API calls */}
-{/* Category Management Modal */}
-<AnimatePresence>
-  {showCategoryModal && (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-      >
-        <div className="sticky top-0 bg-white z-10 p-6 border-b border-[#D0E0C0]">
-          <div className="flex items-center justify-between">
-            <h3 className="text-2xl font-bold text-[#1A4D3E]">Category Management</h3>
-            <button
-              onClick={() => {
-                setShowCategoryModal(false);
-                setEditCategory({ name: '', original: '' });
-                setEditSubcategory({ name: '', original: '', category: '' });
-              }}
-              className="p-2 hover:bg-[#F5F9F0] rounded-xl transition-colors"
-            >
-              <FaTimes className="text-[#8A9B6E]" />
-            </button>
-          </div>
-        </div>
-
-        <div className="p-6 space-y-6">
-          {/* Add Category */}
-          <div className="bg-[#F5F9F0] rounded-2xl p-4">
-            <h4 className="font-semibold text-[#1A4D3E] mb-3">Add New Category</h4>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
-                placeholder="Category name (e.g., Silk)"
-                className="flex-1 px-4 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
-                onKeyPress={(e) => e.key === 'Enter' && addCategory()}
-              />
-              <button
-                onClick={addCategory}
-                disabled={!newCategory}
-                className="px-4 py-2 bg-[#8BC34A] text-white rounded-xl hover:bg-[#5A9E4E] transition-colors disabled:opacity-50"
-              >
-                Add
-              </button>
-            </div>
-          </div>
-
-          {/* Add Subcategory */}
-          <div className="bg-[#F5F9F0] rounded-2xl p-4">
-            <h4 className="font-semibold text-[#1A4D3E] mb-3">Add New Subcategory</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <select
-                value={selectedCategoryForSub}
-                onChange={(e) => setSelectedCategoryForSub(e.target.value)}
-                className="px-4 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
-              >
-                <option value="">Select Category</option>
-                {Object.keys(categories).map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-              <input
-                type="text"
-                value={newSubcategory}
-                onChange={(e) => setNewSubcategory(e.target.value)}
-                placeholder="Subcategory name"
-                className="px-4 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
-                onKeyPress={(e) => e.key === 'Enter' && addSubcategory()}
-              />
-              <button
-                onClick={addSubcategory}
-                disabled={!selectedCategoryForSub || !newSubcategory}
-                className="px-4 py-2 bg-[#8BC34A] text-white rounded-xl hover:bg-[#5A9E4E] transition-colors disabled:opacity-50"
-              >
-                Add
-              </button>
-            </div>
-          </div>
-
-          {/* Categories List */}
-          <div className="space-y-4">
-            <h4 className="font-semibold text-[#1A4D3E] flex items-center gap-2">
-              <FaTag className="text-[#8BC34A]" />
-              All Categories
-            </h4>
-            
-            {Object.keys(categories).length === 0 ? (
-              <div className="text-center py-8 bg-[#F5F9F0] rounded-2xl">
-                <FaTag className="text-4xl text-[#8A9B6E] mx-auto mb-2" />
-                <p className="text-[#8A9B6E]">No categories yet. Add your first category above.</p>
-              </div>
-            ) : (
-              Object.entries(categories).map(([category, subcategories]) => (
-                <div key={category} className="border border-[#D0E0C0] rounded-2xl overflow-hidden">
-                  {/* Category Header */}
-                  <div className="bg-[#F5F9F0] px-4 py-3 flex items-center justify-between">
-                    {editCategory.original === category ? (
-                      <div className="flex items-center gap-2 flex-1">
-                        <input
-                          type="text"
-                          value={editCategory.name}
-                          onChange={(e) => setEditCategory({...editCategory, name: e.target.value})}
-                          className="px-3 py-1 bg-white border border-[#D0E0C0] rounded-lg text-[#1A4D3E] flex-1"
-                          autoFocus
-                          onKeyPress={(e) => e.key === 'Enter' && saveEditCategory()}
-                        />
-                        <button
-                          onClick={saveEditCategory}
-                          className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
-                        >
-                          <FaSave size={14} />
-                        </button>
-                      </div>
-                    ) : (
-                      <h5 className="font-semibold text-[#1A4D3E] text-lg">{category}</h5>
-                    )}
-                    
-                    <div className="flex items-center gap-2">
-                      {editCategory.original !== category && (
-                        <button
-                          onClick={() => startEditCategory(category)}
-                          className="p-2 text-[#8BC34A] hover:bg-white rounded-lg transition-colors"
-                          title="Edit Category"
-                        >
-                          <FaEdit />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => deleteCategory(category)}
-                        className="p-2 text-red-500 hover:bg-white rounded-lg transition-colors"
-                        title="Delete Category"
-                      >
-                        <FaTrash />
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {/* Subcategories List */}
-                  <div className="p-4 bg-white">
-                    {subcategories.length === 0 ? (
-                      <p className="text-sm text-[#8A9B6E] text-center py-2">No subcategories yet</p>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        {subcategories.map((subcategory, index) => (
-                          <div key={index} className="flex items-center justify-between py-2 px-3 bg-[#F5F9F0] rounded-lg">
-                            {editSubcategory.original === subcategory && editSubcategory.category === category ? (
-                              <div className="flex items-center gap-2 flex-1">
-                                <input
-                                  type="text"
-                                  value={editSubcategory.name}
-                                  onChange={(e) => setEditSubcategory({...editSubcategory, name: e.target.value})}
-                                  className="px-3 py-1 bg-white border border-[#D0E0C0] rounded-lg text-[#1A4D3E] flex-1"
-                                  autoFocus
-                                  onKeyPress={(e) => e.key === 'Enter' && saveEditSubcategory()}
-                                />
-                                <button
-                                  onClick={saveEditSubcategory}
-                                  className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
-                                >
-                                  <FaSave size={14} />
-                                </button>
-                              </div>
-                            ) : (
-                              <>
-                                <span className="text-[#1A4D3E]">{subcategory}</span>
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => startEditSubcategory(category, subcategory)}
-                                    className="p-1 text-[#8BC34A] hover:bg-white rounded-lg transition-colors"
-                                    title="Edit Subcategory"
-                                  >
-                                    <FaEdit size={14} />
-                                  </button>
-                                  <button
-                                    onClick={() => deleteSubcategory(category, subcategory)}
-                                    className="p-1 text-red-500 hover:bg-white rounded-lg transition-colors"
-                                    title="Delete Subcategory"
-                                  >
-                                    <FaTrash size={14} />
-                                  </button>
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Quick Stats */}
-          <div className="bg-gradient-to-r from-[#F5F9F0] to-white rounded-2xl p-4 border border-[#D0E0C0]">
-            <h4 className="font-semibold text-[#1A4D3E] mb-2">Category Statistics</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-[#8A9B6E]">Total Categories</p>
-                <p className="text-2xl font-bold text-[#1A4D3E]">{Object.keys(categories).length}</p>
-              </div>
-              <div>
-                <p className="text-sm text-[#8A9B6E]">Total Subcategories</p>
-                <p className="text-2xl font-bold text-[#1A4D3E]">
-                  {Object.values(categories).reduce((sum, subs) => sum + subs.length, 0)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Form Actions */}
-          <div className="flex justify-end gap-3 pt-4">
-            <button
-              onClick={() => {
-                setShowCategoryModal(false);
-                setEditCategory({ name: '', original: '' });
-                setEditSubcategory({ name: '', original: '', category: '' });
-              }}
-              className="px-6 py-2 border border-[#D0E0C0] text-[#1A4D3E] rounded-xl hover:bg-[#F5F9F0] transition-colors"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      </motion.div>
-    </div>
-  )}
-</AnimatePresence>
-      {/* Colors & Sizes Management Modal */}
+      {/* Bulk Upload Modal */}
       <AnimatePresence>
-        {showColorSizeModal && (
+        {showBulkModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-3xl w-full max-w-6xl max-h-[90vh] overflow-y-auto"
             >
-              <div className="p-6 border-b border-[#D0E0C0]">
+              <div className="sticky top-0 bg-white z-10 p-6 border-b border-[#D0E0C0]">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-2xl font-bold text-[#1A4D3E]">Colors & Sizes Management</h3>
+                  <h3 className="text-2xl font-bold text-[#1A4D3E]">Bulk Product Upload</h3>
                   <button
-                    onClick={() => setShowColorSizeModal(false)}
+                    onClick={() => {
+                      setShowBulkModal(false);
+                      setBulkProducts([createEmptyProduct()]);
+                      setSelectedFiles([]);
+                    }}
+                    className="p-2 hover:bg-[#F5F9F0] rounded-xl transition-colors"
+                  >
+                    <FaTimes className="text-[#8A9B6E]" />
+                  </button>
+                </div>
+
+                {/* Tabs */}
+                <div className="flex gap-4 mt-4">
+                  <button
+                    onClick={() => setActiveTab('manual')}
+                    className={`px-4 py-2 rounded-xl font-semibold transition-colors ${
+                      activeTab === 'manual'
+                        ? 'bg-[#8BC34A] text-white'
+                        : 'bg-[#F5F9F0] text-[#1A4D3E]'
+                    }`}
+                  >
+                    Manual Entry
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('excel')}
+                    className={`px-4 py-2 rounded-xl font-semibold transition-colors ${
+                      activeTab === 'excel'
+                        ? 'bg-[#8BC34A] text-white'
+                        : 'bg-[#F5F9F0] text-[#1A4D3E]'
+                    }`}
+                  >
+                    Excel/CSV Upload
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-6">
+                {activeTab === 'manual' ? (
+                  <form onSubmit={addBulkProducts} className="space-y-6">
+                    <div className="space-y-6 max-h-96 overflow-y-auto pr-2">
+                      {bulkProducts.map((product, index) => (
+                        <div
+                          key={index}
+                          className="bg-[#F5F9F0] rounded-2xl p-6 border-2 border-[#D0E0C0]"
+                        >
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className="text-lg font-bold text-[#1A4D3E]">
+                              Product {index + 1}
+                            </h4>
+                            {bulkProducts.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeBulkProductRow(index)}
+                                className="text-red-500 hover:text-red-700 p-2"
+                              >
+                                <FaTimes />
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div>
+                              <label className="block text-[#1A4D3E] font-semibold mb-2 text-sm">
+                                Name *
+                              </label>
+                              <input
+                                type="text"
+                                required
+                                value={product.name}
+                                onChange={(e) => updateBulkProduct(index, 'name', e.target.value)}
+                                className="w-full px-3 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] text-sm"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[#1A4D3E] font-semibold mb-2 text-sm">
+                                Category *
+                              </label>
+                              <select
+                                required
+                                value={product.categoryId}
+                                onChange={(e) => {
+                                  updateBulkProduct(index, 'categoryId', e.target.value);
+                                  updateBulkProduct(index, 'subcategoryId', '');
+                                  updateBulkProduct(index, 'productTypeId', '');
+                                }}
+                                className="w-full px-3 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] text-sm"
+                              >
+                                <option value="">Select</option>
+                                {categories.map(cat => (
+                                  <option key={cat._id} value={cat._id}>{cat.name}</option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-[#1A4D3E] font-semibold mb-2 text-sm">
+                                Subcategory *
+                              </label>
+                              <select
+                                required
+                                value={product.subcategoryId}
+                                onChange={(e) => {
+                                  updateBulkProduct(index, 'subcategoryId', e.target.value);
+                                  updateBulkProduct(index, 'productTypeId', '');
+                                }}
+                                disabled={!product.categoryId}
+                                className="w-full px-3 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] text-sm disabled:opacity-50"
+                              >
+                                <option value="">Select</option>
+                                {product.categoryId && getSubcategoriesForCategory(product.categoryId).map(sub => (
+                                  <option key={sub._id} value={sub._id}>{sub.name}</option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-[#1A4D3E] font-semibold mb-2 text-sm">
+                                Product Type *
+                              </label>
+                              <select
+                                required
+                                value={product.productTypeId}
+                                onChange={(e) => updateBulkProduct(index, 'productTypeId', e.target.value)}
+                                disabled={!product.subcategoryId}
+                                className="w-full px-3 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] text-sm disabled:opacity-50"
+                              >
+                                <option value="">Select</option>
+                                {product.subcategoryId && getProductTypesForSubcategory(product.subcategoryId).map(type => (
+                                  <option key={type._id} value={type._id}>{type.name}</option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-[#1A4D3E] font-semibold mb-2 text-sm">
+                                Fabric Type
+                              </label>
+                              <select
+                                value={product.fabricTypeId}
+                                onChange={(e) => updateBulkProduct(index, 'fabricTypeId', e.target.value)}
+                                className="w-full px-3 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] text-sm"
+                              >
+                                <option value="">Select</option>
+                                {fabricTypes.map(fabric => (
+                                  <option key={fabric._id} value={fabric._id}>{fabric.name}</option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-[#1A4D3E] font-semibold mb-2 text-sm">
+                                Price (₹) *
+                              </label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                required
+                                value={product.price}
+                                onChange={(e) => updateBulkProduct(index, 'price', e.target.value)}
+                                className="w-full px-3 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] text-sm"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[#1A4D3E] font-semibold mb-2 text-sm">
+                                Offer %
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={product.offerPercent}
+                                onChange={(e) => updateBulkProduct(index, 'offerPercent', e.target.value)}
+                                className="w-full px-3 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] text-sm"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[#1A4D3E] font-semibold mb-2 text-sm">
+                                Stock *
+                              </label>
+                              <input
+                                type="number"
+                                required
+                                min="0"
+                                value={product.stock}
+                                onChange={(e) => updateBulkProduct(index, 'stock', e.target.value)}
+                                className="w-full px-3 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] text-sm"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[#1A4D3E] font-semibold mb-2 text-sm">
+                                Weight (kg)
+                              </label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={product.weight}
+                                onChange={(e) => updateBulkProduct(index, 'weight', e.target.value)}
+                                className="w-full px-3 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] text-sm"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[#1A4D3E] font-semibold mb-2 text-sm">
+                                GST (%)
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                max="28"
+                                value={product.gstPercent}
+                                onChange={(e) => updateBulkProduct(index, 'gstPercent', e.target.value)}
+                                className="w-full px-3 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] text-sm"
+                              />
+                            </div>
+
+                            <div className="col-span-3">
+                              <label className="block text-[#1A4D3E] font-semibold mb-2 text-sm">
+                                Sizes (comma separated)
+                              </label>
+                              <input
+                                type="text"
+                                value={product.sizes?.join(', ') || ''}
+                                onChange={(e) => updateBulkProduct(index, 'sizes', e.target.value.split(',').map(s => s.trim()).filter(s => s))}
+                                placeholder="S, M, L, XL"
+                                className="w-full px-3 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] text-sm"
+                              />
+                            </div>
+
+                            <div className="col-span-3">
+                              <label className="block text-[#1A4D3E] font-semibold mb-2 text-sm">
+                                Colors (comma separated)
+                              </label>
+                              <input
+                                type="text"
+                                value={product.colors?.join(', ') || ''}
+                                onChange={(e) => updateBulkProduct(index, 'colors', e.target.value.split(',').map(c => c.trim()).filter(c => c))}
+                                placeholder="Red, Blue, Black"
+                                className="w-full px-3 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] text-sm"
+                              />
+                            </div>
+
+                            <div className="col-span-3">
+                              <label className="block text-[#1A4D3E] font-semibold mb-2 text-sm">
+                                Description
+                              </label>
+                              <textarea
+                                value={product.description}
+                                onChange={(e) => updateBulkProduct(index, 'description', e.target.value)}
+                                rows="2"
+                                className="w-full px-3 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E] text-sm"
+                              />
+                            </div>
+
+                            <div className="col-span-3">
+                              <label className="block text-[#1A4D3E] font-semibold mb-2 text-sm">
+                                Images
+                              </label>
+                              <div className="border-2 border-dashed border-[#D0E0C0] rounded-xl p-3 text-center bg-white">
+                                <input
+                                  type="file"
+                                  multiple
+                                  accept="image/*"
+                                  onChange={(e) => handleBulkProductImage(index, e.target.files)}
+                                  className="hidden"
+                                  id={`bulk-product-images-${index}`}
+                                />
+                                <label
+                                  htmlFor={`bulk-product-images-${index}`}
+                                  className="cursor-pointer flex flex-col items-center"
+                                >
+                                  <FaUpload className="text-xl text-[#8A9B6E] mb-1" />
+                                  <span className="text-sm text-[#8A9B6E]">Choose images</span>
+                                </label>
+                              </div>
+                              {product.images?.length > 0 && (
+                                <div className="mt-2">
+                                  <p className="text-xs text-green-600">{product.images.length} file(s) selected</p>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="col-span-3">
+                              <div className="flex items-center gap-3 mt-2">
+                                <input
+                                  type="checkbox"
+                                  id={`bulk-isFeatured-${index}`}
+                                  checked={product.isFeatured || false}
+                                  onChange={(e) => updateBulkProduct(index, 'isFeatured', e.target.checked)}
+                                  className="w-4 h-4 text-[#8BC34A] bg-white border-gray-300 rounded focus:ring-[#8BC34A]"
+                                />
+                                <label htmlFor={`bulk-isFeatured-${index}`} className="text-[#1A4D3E] text-sm">
+                                  Feature this product
+                                </label>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={addBulkProductRow}
+                      className="w-full border-2 border-dashed border-[#D0E0C0] text-[#1A4D3E] py-4 rounded-2xl hover:bg-[#F5F9F0] transition-colors flex items-center justify-center gap-2"
+                    >
+                      <FaPlus />
+                      Add Another Product
+                    </button>
+
+                    <div className="flex flex-col md:flex-row gap-4 pt-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowBulkModal(false);
+                          setBulkProducts([createEmptyProduct()]);
+                          setSelectedFiles([]);
+                        }}
+                        className="flex-1 px-6 py-3 border border-[#D0E0C0] text-[#1A4D3E] rounded-xl hover:bg-[#F5F9F0] transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        className="flex-1 bg-gradient-to-r from-[#8BC34A] to-[#5A9E4E] text-white px-6 py-3 rounded-xl font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {loading ? (
+                          <>
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                            Adding...
+                          </>
+                        ) : (
+                          `Add ${bulkProducts.length} Product${bulkProducts.length > 1 ? 's' : ''}`
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="bg-[#F5F9F0] rounded-2xl p-6">
+                      <h4 className="text-lg font-bold text-[#1A4D3E] mb-4 flex items-center gap-2">
+                        <FaFileExcel className="text-green-600" />
+                        Upload Excel File with Images
+                      </h4>
+
+                      <div
+                        className={`border-2 border-dashed rounded-2xl p-8 text-center transition-colors ${
+                          dragActive
+                            ? 'border-[#8BC34A] bg-white'
+                            : 'border-[#D0E0C0] bg-white'
+                        }`}
+                        onDragEnter={handleDrag}
+                        onDragLeave={handleDrag}
+                        onDragOver={handleDrag}
+                        onDrop={handleDrop}
+                      >
+                        <FaFileExcel className="text-4xl text-green-600 mx-auto mb-2" />
+                        <FaImage className="text-3xl text-blue-600 mx-auto mb-3" />
+                        <p className="text-[#1A4D3E] mb-2 font-semibold">
+                          Drag & drop Excel file + Product Images
+                        </p>
+                        <p className="text-sm text-[#8A9B6E] mb-3">
+                          Upload Excel file along with product images. Image names in Excel should match uploaded files.
+                        </p>
+                        <input
+                          type="file"
+                          multiple
+                          accept=".xlsx,.xls,.csv,image/*"
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files);
+                            setSelectedFiles([...selectedFiles, ...files]);
+                          }}
+                          className="hidden"
+                          id="excel-images-files"
+                        />
+                        <label
+                          htmlFor="excel-images-files"
+                          className="inline-block bg-green-600 text-white px-6 py-3 rounded-2xl cursor-pointer hover:bg-green-700 transition-colors"
+                        >
+                          Choose Excel & Image Files
+                        </label>
+                      </div>
+
+                      {selectedFiles.length > 0 && (
+                        <div className="mt-4">
+                          <h5 className="text-[#1A4D3E] font-semibold mb-2">
+                            Selected Files:
+                          </h5>
+                          <div className="space-y-2 max-h-32 overflow-y-auto">
+                            {selectedFiles.map((file, index) => (
+                              <div
+                                key={index}
+                                className="flex items-center justify-between bg-white p-2 rounded-lg"
+                              >
+                                <div className="flex items-center gap-2">
+                                  {file.type.startsWith("image/") ? (
+                                    <FaImage className="text-blue-500" />
+                                  ) : (
+                                    <FaFileExcel className="text-green-500" />
+                                  )}
+                                  <span className="text-sm text-[#1A4D3E]">
+                                    {file.name}
+                                  </span>
+                                  <span className="text-xs text-[#8A9B6E]">
+                                    {(file.size / 1024).toFixed(1)} KB
+                                  </span>
+                                </div>
+                                <button
+                                  onClick={() => removeFile(index)}
+                                  className="text-red-500 hover:text-red-700"
+                                >
+                                  <FaTimes />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                          <p className="text-sm text-[#8A9B6E] mt-2">
+                            Excel files:{" "}
+                            {
+                              selectedFiles.filter(
+                                (f) =>
+                                  f.name.endsWith(".xlsx") ||
+                                  f.name.endsWith(".xls") ||
+                                  f.name.endsWith(".csv")
+                              ).length
+                            }{" "}
+                            | Images:{" "}
+                            {
+                              selectedFiles.filter((f) =>
+                                f.type.startsWith("image/")
+                              ).length
+                            }
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                        <button
+                          onClick={downloadExcelTemplate}
+                          className="bg-[#1A4D3E] text-white py-3 rounded-2xl font-semibold flex items-center justify-center gap-2 hover:bg-[#0F3A2E] transition-colors"
+                        >
+                          <FaDownload />
+                          Download Template
+                        </button>
+
+                        <button
+                          onClick={handleExcelUpload}
+                          disabled={
+                            loading ||
+                            !selectedFiles.find(
+                              (f) =>
+                                f.name.endsWith(".xlsx") ||
+                                f.name.endsWith(".xls") ||
+                                f.name.endsWith(".csv")
+                            )
+                          }
+                          className="bg-gradient-to-r from-[#8BC34A] to-[#5A9E4E] text-white py-3 rounded-2xl font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                          {loading ? (
+                            <>
+                              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                              Uploading...
+                            </>
+                          ) : (
+                            <>
+                              <FaUpload />
+                              Upload Excel & Images
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="bg-blue-50 rounded-2xl p-4 border border-blue-200">
+                      <h5 className="font-semibold text-blue-800 mb-2">Excel Upload Instructions:</h5>
+                      <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
+                        <li>First column headers must match the template exactly</li>
+                        <li>Required columns: name, price, category, subcategory, productType</li>
+                        <li>Category options: Men, Women, Kids</li>
+                        <li>Subcategory for Men: Topwear, Bottomwear, Footwear, Accessories</li>
+                        <li>Subcategory for Women: Western, Ethnic, Footwear, Accessories</li>
+                        <li>Subcategory for Kids: Girls, Boys, Footwear, Accessories</li>
+                        <li>Product Types: Shirts, T-Shirts, Jeans, Dresses, Kurtas, etc.</li>
+                        <li>Fabric Types: Cotton, Linen, Silk, Wool, Denim, etc.</li>
+                        <li>Sizes should be comma-separated (e.g., "S,M,L,XL")</li>
+                        <li>Colors should be comma-separated (e.g., "Red,Blue,Black")</li>
+                        <li>Images column: Add comma-separated image filenames</li>
+                        <li>Upload images with matching filenames along with Excel file</li>
+                        <li>Set isFeatured to "true" for featured products</li>
+                      </ul>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Category Management Modal */}
+      <AnimatePresence>
+        {showCategoryModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+            >
+              <div className="sticky top-0 bg-white z-10 p-6 border-b border-[#D0E0C0]">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-2xl font-bold text-[#1A4D3E]">Category Management</h3>
+                  <button
+                    onClick={() => {
+                      setShowCategoryModal(false);
+                      setEditCategory({ id: null, name: '' });
+                      setEditSubcategory({ id: null, name: '', categoryId: '' });
+                      setEditProductType({ id: null, name: '', subcategoryId: '' });
+                      setEditFabricType({ id: null, name: '' });
+                    }}
                     className="p-2 hover:bg-[#F5F9F0] rounded-xl transition-colors"
                   >
                     <FaTimes className="text-[#8A9B6E]" />
@@ -2941,88 +3059,627 @@ const ProductManagement = () => {
               </div>
 
               <div className="p-6 space-y-6">
-                {/* Colors Section */}
+                {/* Main Categories Section */}
                 <div className="bg-[#F5F9F0] rounded-2xl p-4">
                   <h4 className="font-semibold text-[#1A4D3E] mb-3 flex items-center gap-2">
-                    <FaPalette /> Available Colors
+                    <FaTag /> Main Categories (Men, Women, Kids)
                   </h4>
                   <div className="flex gap-2 mb-3">
                     <input
                       type="text"
-                      value={newColor}
-                      onChange={(e) => setNewColor(e.target.value)}
-                      placeholder="Color name"
-                      className="flex-1 px-4 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A]"
+                      value={newCategory}
+                      onChange={(e) => setNewCategory(e.target.value)}
+                      placeholder="Category name (e.g., Men)"
+                      className="flex-1 px-4 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
+                      onKeyPress={(e) => e.key === 'Enter' && addCategory()}
                     />
                     <button
-                      onClick={addNewColor}
-                      disabled={!newColor}
-                      className="px-4 py-2 bg-[#8BC34A] text-white rounded-xl hover:bg-[#5A9E4E] disabled:opacity-50"
+                      onClick={addCategory}
+                      disabled={!newCategory}
+                      className="px-4 py-2 bg-[#8BC34A] text-white rounded-xl hover:bg-[#5A9E4E] transition-colors disabled:opacity-50"
                     >
                       Add
                     </button>
                   </div>
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {availableColors.map((color) => (
-                      <div
-                        key={color}
-                        className="flex items-center gap-2 bg-white px-3 py-1 rounded-xl border border-[#D0E0C0]"
-                      >
-                        <span className="text-[#1A4D3E]">{color}</span>
-                        <button
-                          onClick={() => deleteColor(color)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <FaTrash size={12} />
-                        </button>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {categories.map((category) => (
+                      <div key={category._id} className="bg-white rounded-xl p-3 border border-[#D0E0C0]">
+                        {editCategory.id === category._id ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={editCategory.name}
+                              onChange={(e) => setEditCategory({ ...editCategory, name: e.target.value })}
+                              className="flex-1 px-2 py-1 border border-[#D0E0C0] rounded-lg text-sm"
+                              autoFocus
+                              onKeyPress={(e) => e.key === 'Enter' && saveEditCategory()}
+                            />
+                            <button
+                              onClick={saveEditCategory}
+                              className="p-1 bg-green-500 text-white rounded-lg"
+                            >
+                              <FaSave size={12} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              {getCategoryIcon(category.name)}
+                              <span className="font-medium text-[#1A4D3E]">{category.name}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => startEditCategory(category)}
+                                className="p-1 text-[#8BC34A] hover:bg-[#F5F9F0] rounded"
+                              >
+                                <FaEdit size={12} />
+                              </button>
+                              <button
+                                onClick={() => deleteCategory(category._id)}
+                                className="p-1 text-red-500 hover:bg-[#F5F9F0] rounded"
+                              >
+                                <FaTrash size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* Sizes Section */}
+                {/* Subcategories Section */}
                 <div className="bg-[#F5F9F0] rounded-2xl p-4">
-                  <h4 className="font-semibold text-[#1A4D3E] mb-3 flex items-center gap-2">
-                    <FaRulerCombined /> Available Sizes
-                  </h4>
+                  <h4 className="font-semibold text-[#1A4D3E] mb-3">Subcategories</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                    <select
+                      value={selectedCategory}
+                      onChange={(e) => setSelectedCategory(e.target.value)}
+                      className="px-4 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
+                    >
+                      <option value="">Select Category</option>
+                      {categories.map(cat => (
+                        <option key={cat._id} value={cat._id}>{cat.name}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      value={newSubcategory}
+                      onChange={(e) => setNewSubcategory(e.target.value)}
+                      placeholder="Subcategory name"
+                      className="px-4 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
+                      onKeyPress={(e) => e.key === 'Enter' && addSubcategory()}
+                    />
+                    <button
+                      onClick={addSubcategory}
+                      disabled={!selectedCategory || !newSubcategory}
+                      className="px-4 py-2 bg-[#8BC34A] text-white rounded-xl hover:bg-[#5A9E4E] transition-colors disabled:opacity-50"
+                    >
+                      Add Subcategory
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {selectedCategory && subcategories[selectedCategory]?.map((sub) => (
+                      <div key={sub._id} className="bg-white rounded-xl p-3 border border-[#D0E0C0]">
+                        {editSubcategory.id === sub._id ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={editSubcategory.name}
+                              onChange={(e) => setEditSubcategory({ ...editSubcategory, name: e.target.value })}
+                              className="flex-1 px-2 py-1 border border-[#D0E0C0] rounded-lg text-sm"
+                              autoFocus
+                              onKeyPress={(e) => e.key === 'Enter' && saveEditSubcategory()}
+                            />
+                            <button
+                              onClick={saveEditSubcategory}
+                              className="p-1 bg-green-500 text-white rounded-lg"
+                            >
+                              <FaSave size={12} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <span className="text-[#1A4D3E]">{sub.name}</span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => startEditSubcategory(sub)}
+                                className="p-1 text-[#8BC34A] hover:bg-[#F5F9F0] rounded"
+                              >
+                                <FaEdit size={12} />
+                              </button>
+                              <button
+                                onClick={() => deleteSubcategory(sub._id)}
+                                className="p-1 text-red-500 hover:bg-[#F5F9F0] rounded"
+                              >
+                                <FaTrash size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {selectedCategory && (!subcategories[selectedCategory] || subcategories[selectedCategory].length === 0) && (
+                      <p className="text-sm text-[#8A9B6E] text-center py-2">No subcategories yet</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Product Types Section */}
+                <div className="bg-[#F5F9F0] rounded-2xl p-4">
+                  <h4 className="font-semibold text-[#1A4D3E] mb-3">Product Types</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                    <select
+                      value={selectedSubcategory}
+                      onChange={(e) => setSelectedSubcategory(e.target.value)}
+                      className="px-4 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
+                    >
+                      <option value="">Select Subcategory</option>
+                      {selectedCategory && subcategories[selectedCategory]?.map(sub => (
+                        <option key={sub._id} value={sub._id}>{sub.name}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      value={newProductType}
+                      onChange={(e) => setNewProductType(e.target.value)}
+                      placeholder="Product type (e.g., Shirts, T-Shirts)"
+                      className="px-4 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
+                      onKeyPress={(e) => e.key === 'Enter' && addProductType()}
+                    />
+                    <button
+                      onClick={addProductType}
+                      disabled={!selectedSubcategory || !newProductType}
+                      className="px-4 py-2 bg-[#8BC34A] text-white rounded-xl hover:bg-[#5A9E4E] transition-colors disabled:opacity-50"
+                    >
+                      Add Product Type
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {selectedSubcategory && productTypes[selectedSubcategory]?.map((type) => (
+                      <div key={type._id} className="bg-white rounded-xl p-3 border border-[#D0E0C0]">
+                        {editProductType.id === type._id ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={editProductType.name}
+                              onChange={(e) => setEditProductType({ ...editProductType, name: e.target.value })}
+                              className="flex-1 px-2 py-1 border border-[#D0E0C0] rounded-lg text-sm"
+                              autoFocus
+                              onKeyPress={(e) => e.key === 'Enter' && saveEditProductType()}
+                            />
+                            <button
+                              onClick={saveEditProductType}
+                              className="p-1 bg-green-500 text-white rounded-lg"
+                            >
+                              <FaSave size={12} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <span className="text-[#1A4D3E]">{type.name}</span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => startEditProductType(type)}
+                                className="p-1 text-[#8BC34A] hover:bg-[#F5F9F0] rounded"
+                              >
+                                <FaEdit size={12} />
+                              </button>
+                              <button
+                                onClick={() => deleteProductType(type._id)}
+                                className="p-1 text-red-500 hover:bg-[#F5F9F0] rounded"
+                              >
+                                <FaTrash size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {selectedSubcategory && (!productTypes[selectedSubcategory] || productTypes[selectedSubcategory].length === 0) && (
+                      <p className="text-sm text-[#8A9B6E] text-center py-2">No product types yet</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Fabric Types Section */}
+                <div className="bg-[#F5F9F0] rounded-2xl p-4">
+                  <h4 className="font-semibold text-[#1A4D3E] mb-3">Fabric Types</h4>
                   <div className="flex gap-2 mb-3">
                     <input
                       type="text"
-                      value={newSize}
-                      onChange={(e) => setNewSize(e.target.value)}
-                      placeholder="Size (e.g., XXL)"
-                      className="flex-1 px-4 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A]"
+                      value={newFabricType}
+                      onChange={(e) => setNewFabricType(e.target.value)}
+                      placeholder="Fabric type (e.g., Cotton, Linen, Silk)"
+                      className="flex-1 px-4 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
+                      onKeyPress={(e) => e.key === 'Enter' && addFabricType()}
                     />
                     <button
-                      onClick={addNewSize}
-                      disabled={!newSize}
-                      className="px-4 py-2 bg-[#8BC34A] text-white rounded-xl hover:bg-[#5A9E4E] disabled:opacity-50"
+                      onClick={addFabricType}
+                      disabled={!newFabricType}
+                      className="px-4 py-2 bg-[#8BC34A] text-white rounded-xl hover:bg-[#5A9E4E] transition-colors disabled:opacity-50"
                     >
                       Add
                     </button>
                   </div>
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {availableSizes.map((size) => (
-                      <div
-                        key={size}
-                        className="flex items-center gap-2 bg-white px-3 py-1 rounded-xl border border-[#D0E0C0]"
-                      >
-                        <span className="text-[#1A4D3E]">{size}</span>
-                        <button
-                          onClick={() => deleteSize(size)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <FaTrash size={12} />
-                        </button>
+                  
+                  <div className="flex flex-wrap gap-2">
+                    {fabricTypes.map((fabric) => (
+                      <div key={fabric._id} className="bg-white rounded-xl px-3 py-1 border border-[#D0E0C0] flex items-center gap-2">
+                        {editFabricType.id === fabric._id ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={editFabricType.name}
+                              onChange={(e) => setEditFabricType({ ...editFabricType, name: e.target.value })}
+                              className="px-2 py-1 border border-[#D0E0C0] rounded-lg text-sm"
+                              autoFocus
+                              onKeyPress={(e) => e.key === 'Enter' && saveEditFabricType()}
+                            />
+                            <button
+                              onClick={saveEditFabricType}
+                              className="p-1 bg-green-500 text-white rounded-lg"
+                            >
+                              <FaSave size={10} />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <span className="text-[#1A4D3E]">{fabric.name}</span>
+                            <button
+                              onClick={() => startEditFabricType(fabric)}
+                              className="p-1 text-[#8BC34A] hover:bg-[#F5F9F0] rounded"
+                            >
+                              <FaEdit size={10} />
+                            </button>
+                            <button
+                              onClick={() => deleteFabricType(fabric._id)}
+                              className="p-1 text-red-500 hover:bg-[#F5F9F0] rounded"
+                            >
+                              <FaTrash size={10} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     ))}
                   </div>
+                </div>
+
+                {/* Statistics */}
+                <div className="bg-gradient-to-r from-[#F5F9F0] to-white rounded-2xl p-4 border border-[#D0E0C0]">
+                  <h4 className="font-semibold text-[#1A4D3E] mb-2">Category Statistics</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <p className="text-sm text-[#8A9B6E]">Main Categories</p>
+                      <p className="text-2xl font-bold text-[#1A4D3E]">{categories.length}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-[#8A9B6E]">Subcategories</p>
+                      <p className="text-2xl font-bold text-[#1A4D3E]">
+                        {Object.values(subcategories).reduce((sum, subs) => sum + subs.length, 0)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-[#8A9B6E]">Product Types</p>
+                      <p className="text-2xl font-bold text-[#1A4D3E]">
+                        {Object.values(productTypes).reduce((sum, types) => sum + types.length, 0)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-[#8A9B6E]">Fabric Types</p>
+                      <p className="text-2xl font-bold text-[#1A4D3E]">{fabricTypes.length}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    onClick={() => setShowCategoryModal(false)}
+                    className="px-6 py-2 border border-[#D0E0C0] text-[#1A4D3E] rounded-xl hover:bg-[#F5F9F0] transition-colors"
+                  >
+                    Close
+                  </button>
                 </div>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
+
+     {/* Colors & Sizes Management Modal */}
+<AnimatePresence>
+  {showColorSizeModal && (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.9 }}
+        className="bg-white rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-y-auto"
+      >
+        <div className="p-6 border-b border-[#D0E0C0]">
+          <div className="flex items-center justify-between">
+            <h3 className="text-2xl font-bold text-[#1A4D3E]">Colors & Sizes Management</h3>
+            <button
+              onClick={() => setShowColorSizeModal(false)}
+              className="p-2 hover:bg-[#F5F9F0] rounded-xl transition-colors"
+            >
+              <FaTimes className="text-[#8A9B6E]" />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-8">
+          {/* Colors Section */}
+          <div className="bg-[#F5F9F0] rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-semibold text-[#1A4D3E] flex items-center gap-2">
+                <FaPalette className="text-[#8BC34A]" />
+                Available Colors
+              </h4>
+              <button
+                onClick={async () => {
+                  try {
+                    const colorsFull = await ProductApi.getColorsFull();
+                    console.log('Full colors:', colorsFull);
+                  } catch (error) {
+                    console.error('Error fetching colors:', error);
+                  }
+                }}
+                className="text-xs text-[#8A9B6E] hover:text-[#1A4D3E]"
+              >
+                Manage colors
+              </button>
+            </div>
+            
+            {/* Add New Color */}
+            <div className="flex gap-3 mb-4">
+              <input
+                type="text"
+                value={newColor}
+                onChange={(e) => setNewColor(e.target.value)}
+                placeholder="Color name (e.g., Teal, Coral)"
+                className="flex-1 px-4 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
+                onKeyPress={(e) => e.key === 'Enter' && addNewColor()}
+              />
+              <div className="relative">
+                <input
+                  type="color"
+                  value={newColorHex}
+                  onChange={(e) => setNewColorHex(e.target.value)}
+                  className="w-12 h-12 rounded-xl border border-[#D0E0C0] cursor-pointer bg-white"
+                />
+              </div>
+              <button
+                onClick={addNewColor}
+                disabled={!newColor}
+                className="px-5 py-2 bg-[#8BC34A] text-white rounded-xl hover:bg-[#5A9E4E] transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                <FaPlus size={14} />
+                Add
+              </button>
+            </div>
+            
+            {/* Color List */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4">
+              {availableColors.map((color, index) => {
+                // Get color details if available
+                const colorDetail = colorsFullData.find(c => c.name === color);
+                const hexCode = colorDetail?.hexCode || getColorHexCode(color);
+                
+                return (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-[#D0E0C0] hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-6 h-6 rounded-full border border-gray-200"
+                        style={{ backgroundColor: hexCode }}
+                      />
+                      <span className="text-[#1A4D3E] font-medium">{color}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => startEditColor(color, hexCode, colorDetail?._id)}
+                        className="p-1 text-[#8BC34A] hover:bg-[#F5F9F0] rounded transition-colors"
+                        title="Edit color"
+                      >
+                        <FaEdit size={12} />
+                      </button>
+                      <button
+                        onClick={() => deleteColor(colorDetail?._id || color)}
+                        className="p-1 text-red-500 hover:bg-red-50 rounded transition-colors"
+                        title="Delete color"
+                      >
+                        <FaTrash size={12} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            {availableColors.length === 0 && (
+              <div className="text-center py-8">
+                <p className="text-[#8A9B6E]">No colors added yet. Add your first color above.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Sizes Section */}
+          <div className="bg-[#F5F9F0] rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-semibold text-[#1A4D3E] flex items-center gap-2">
+                <FaRulerCombined className="text-[#8BC34A]" />
+                Available Sizes
+              </h4>
+              <button
+                onClick={async () => {
+                  try {
+                    const sizesFull = await ProductApi.getSizesFull();
+                    console.log('Full sizes:', sizesFull);
+                  } catch (error) {
+                    console.error('Error fetching sizes:', error);
+                  }
+                }}
+                className="text-xs text-[#8A9B6E] hover:text-[#1A4D3E]"
+              >
+                Manage sizes
+              </button>
+            </div>
+            
+            {/* Add New Size */}
+            <div className="flex gap-3 mb-4">
+              <input
+                type="text"
+                value={newSize}
+                onChange={(e) => setNewSize(e.target.value.toUpperCase())}
+                placeholder="Size (e.g., XXL, 3XL, 42)"
+                className="flex-1 px-4 py-2 bg-white border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A] text-[#1A4D3E]"
+                onKeyPress={(e) => e.key === 'Enter' && addNewSize()}
+              />
+              <button
+                onClick={addNewSize}
+                disabled={!newSize}
+                className="px-5 py-2 bg-[#8BC34A] text-white rounded-xl hover:bg-[#5A9E4E] transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                <FaPlus size={14} />
+                Add
+              </button>
+            </div>
+            
+            {/* Size List */}
+            <div className="flex flex-wrap gap-3 mt-4">
+              {availableSizes.map((size, index) => {
+                const sizeDetail = sizesFullData.find(s => s.name === size);
+                return (
+                  <div
+                    key={index}
+                    className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-[#D0E0C0] hover:shadow-md transition-shadow"
+                  >
+                    <span className="text-[#1A4D3E] font-medium">{size}</span>
+                    <div className="flex items-center gap-1 ml-2">
+                      <button
+                        onClick={() => startEditSize(size, sizeDetail?._id)}
+                        className="p-1 text-[#8BC34A] hover:bg-[#F5F9F0] rounded transition-colors"
+                        title="Edit size"
+                      >
+                        <FaEdit size={12} />
+                      </button>
+                      <button
+                        onClick={() => deleteSize(sizeDetail?._id || size)}
+                        className="p-1 text-red-500 hover:bg-red-50 rounded transition-colors"
+                        title="Delete size"
+                      >
+                        <FaTrash size={12} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            {availableSizes.length === 0 && (
+              <div className="text-center py-8">
+                <p className="text-[#8A9B6E]">No sizes added yet. Add your first size above.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Edit Color Modal */}
+          {editingColor && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-2xl p-6 w-96">
+                <h4 className="text-xl font-bold text-[#1A4D3E] mb-4">Edit Color</h4>
+                <div className="space-y-4">
+                  <input
+                    type="text"
+                    value={editingColor.name}
+                    onChange={(e) => setEditingColor({ ...editingColor, name: e.target.value })}
+                    className="w-full px-4 py-2 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A]"
+                    placeholder="Color name"
+                  />
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={editingColor.hexCode}
+                      onChange={(e) => setEditingColor({ ...editingColor, hexCode: e.target.value })}
+                      className="w-12 h-12 rounded-xl border border-[#D0E0C0] cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={editingColor.hexCode}
+                      onChange={(e) => setEditingColor({ ...editingColor, hexCode: e.target.value })}
+                      className="flex-1 px-4 py-2 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A]"
+                      placeholder="#000000"
+                    />
+                  </div>
+                  <div className="flex gap-3 mt-4">
+                    <button
+                      onClick={saveEditColor}
+                      className="flex-1 bg-[#8BC34A] text-white py-2 rounded-xl hover:bg-[#5A9E4E]"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => setEditingColor(null)}
+                      className="flex-1 border border-[#D0E0C0] text-[#1A4D3E] py-2 rounded-xl hover:bg-[#F5F9F0]"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Edit Size Modal */}
+          {editingSize && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-2xl p-6 w-96">
+                <h4 className="text-xl font-bold text-[#1A4D3E] mb-4">Edit Size</h4>
+                <input
+                  type="text"
+                  value={editingSize.name}
+                  onChange={(e) => setEditingSize({ ...editingSize, name: e.target.value.toUpperCase() })}
+                  className="w-full px-4 py-2 bg-[#F5F9F0] border border-[#D0E0C0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BC34A]"
+                  placeholder="Size name"
+                />
+                <div className="flex gap-3 mt-4">
+                  <button
+                    onClick={saveEditSize}
+                    className="flex-1 bg-[#8BC34A] text-white py-2 rounded-xl hover:bg-[#5A9E4E]"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setEditingSize(null)}
+                    className="flex-1 border border-[#D0E0C0] text-[#1A4D3E] py-2 rounded-xl hover:bg-[#F5F9F0]"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="p-6 border-t border-[#D0E0C0] flex justify-end gap-3">
+          <button
+            onClick={() => setShowColorSizeModal(false)}
+            className="px-6 py-2 border border-[#D0E0C0] text-[#1A4D3E] rounded-xl hover:bg-[#F5F9F0] transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  )}
+</AnimatePresence>
+
     </div>
   );
 };

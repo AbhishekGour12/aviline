@@ -14,7 +14,7 @@ const USPItem = ({ icon: Icon, text, delay }) => (
     className="flex items-center gap-4 group cursor-pointer"
   >
     <div className="w-12 h-12 rounded-full bg-[#F5F9F0] flex items-center justify-center group-hover:bg-[#8BC34A] transition-colors duration-300">
-      <Icon className="text-xl max-sm:text-lg text-[#1A4D3E] group-hover:text-white transition-colors duration-300" />
+      <Icon className="text-xl max-sm:text-lg text-[#777E5C] group-hover:text-white transition-colors duration-300" />
     </div>
     <span className="text-sm max-sm:text-xs font-semibold tracking-wide text-[#1A4D3E] leading-tight">
       {text}

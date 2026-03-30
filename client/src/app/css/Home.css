@@ -3,14 +3,14 @@
   }
   
   .mySwiper .swiper-pagination-bullet {
-    background: #d41d40;
+    background: #777E5C;
     opacity: 0.5;
     width: 8px;
     height: 8px;
   }
   
   .mySwiper .swiper-pagination-bullet-active {
-    background: #d41d40;
+    background: #777E5C;
     opacity: 1;
     width: 20px;
     border-radius: 4px;
@@ -18,7 +18,7 @@
   
   .mySwiper .swiper-button-prev,
   .mySwiper .swiper-button-next {
-    color: #5A9E4E;
+    color: #777E5C;
     background: white;
     width: 40px;
     height: 40px;

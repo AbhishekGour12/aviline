@@ -230,6 +230,7 @@ const LoginPage = () => {
                     value={countryCode}
                     onChange={(e) => setCountryCode(e.target.value)}
                     className="w-28 max-sm:w-fit px-3 py-3 rounded-xl border border-[#DFE0DC] bg-[#F9FBF7] text-[#777E5C] font-medium focus:outline-none focus:ring-2 focus:ring-[#D1D88D] focus:border-[#D1D88D] transition-all max-sm:text-xs max-sm:px-1"
+                  suppressHydrationWarning
                   >
                     <option value="+91">🇮🇳 +91</option>
                   </select>
@@ -249,7 +250,8 @@ const LoginPage = () => {
                           ? "border-[#D1D88D] bg-[#F9FBF7] focus:ring-[#D1D88D]"
                           : "border-[#DFE0DC] bg-[#F9FBF7] focus:ring-[#D1D88D] focus:border-[#D1D88D]"
                       } text-[#2C3E2B] placeholder:text-[#A0B08A] focus:outline-none focus:ring-2 transition-all max-sm:placeholder:text-transparent`}
-                    />
+                    suppressHydrationWarning
+                   />
                     <Phone className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#A0B08A]" />
                     {phoneError && formData.phone.length > 0 && (
                       <p className="text-xs text-red-500 mt-1 ml-2">{phoneError}</p>
@@ -330,7 +332,8 @@ const LoginPage = () => {
                     ? "bg-[#5A6E4A] text-white shadow-md"
                     : "bg-[#777E5C] text-white"
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
+             suppressHydrationWarning
+             >
                 {isLoading ? (
                   <div className="flex items-center justify-center gap-2">
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />

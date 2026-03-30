@@ -5,12 +5,14 @@ import ProductRoutes from "./Routes/ProductRoutes.js";
 import MongoDBConnect from "./config/MongoDBConnect.js";
 import path from "path";
 import UserRoutes from "./Routes/UserRoutes.js";
+import { initializeDatabase } from "./config/initDB.js";
 const app = express();
 dotenv.config();
 app.use(cors());
 app.use(express.json());
 
 MongoDBConnect();
+
 app.use(
   "/uploads/products",
   express.static(path.join(process.cwd(), "uploads", "products"))

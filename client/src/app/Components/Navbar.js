@@ -1,30 +1,13 @@
+// components/Navbar.js - Updated with proper routing
 "use client";
 import React, { useState, useEffect } from 'react';
-import { FaSearch, FaRegEdit, FaPencilAlt, FaCartPlus, FaUser, FaBars, FaTimes, FaSignOutAlt, FaUserCircle, FaHeart, FaClipboardList } from 'react-icons/fa';
+import { FaSearch, FaCartPlus, FaUser, FaBars, FaTimes, FaSignOutAlt, FaUserCircle, FaHeart, FaClipboardList } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from "next/navigation";
 import { useSelector, useDispatch } from 'react-redux';
 import Image from 'next/image';
 import { logoutSuccess } from '../store/features/authSlice';
-
-const NAV_ITEMS = [
-  { name: 'WOMEN', categories: { 
-      'Western': ['Topwear', 'Dresses', 'Jeans', 'Skirts'],
-      'Ethnic': ['Kurtas', 'Sarees', 'Lehenga', 'Suits'],
-      'Brands': ['Aurelia', 'W', 'Biba', 'Libas']
-    } 
-  },
-  { name: 'MEN', categories: { 
-      'Topwear': ['T-Shirts', 'Shirts', 'Jackets'],
-      'Bottomwear': ['Jeans', 'Trousers', 'Shorts'],
-      'Footwear': ['Casual Shoes', 'Sneakers', 'Boots']
-    } 
-  },
-  { name: 'KIDS' },
-  { name: 'HOME' },
-  { name: 'OFFERS' },
-  { name: 'VMART' },
-];
+import { ProductApi } from '../lib/ProductApi';
 
 const Navbar = () => {
   const [activeTab, setActiveTab] = useState(null);
@@ -33,16 +16,83 @@ const Navbar = () => {
   const [activeMobileTab, setActiveMobileTab] = useState(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [categoryHierarchy, setCategoryHierarchy] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  
   const router = useRouter();
   const dispatch = useDispatch();
   
-  // Get user data from Redux store
-  const { user, isAuthenticated, token } = useSelector((state) => state.auth);
+  const { user, isAuthenticated } = useSelector((state) => state.auth);
   
-  // Get username or email for display
+  // Fetch category hierarchy on component mount
+  useEffect(() => {
+    fetchCategoryHierarchy();
+  }, []);
+
+  const fetchCategoryHierarchy = async () => {
+    try {
+      setLoading(true);
+      const hierarchy = await ProductApi.getCategoryHierarchy();
+      setCategoryHierarchy(hierarchy);
+    } catch (error) {
+      console.error('Failed to fetch category hierarchy:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle navigation to products page with filters
+  const navigateToProducts = (filters = {}) => {
+    const queryParams = new URLSearchParams();
+    
+    if (filters.search) {
+      queryParams.append('q', filters.search);
+    }
+    if (filters.category) {
+      queryParams.append('category', filters.category);
+    }
+    if (filters.subcategory) {
+      queryParams.append('subcategory', filters.subcategory);
+    }
+    if (filters.productType) {
+      queryParams.append('type', filters.productType);
+    }
+    
+    router.push(`/products${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
+  };
+
+  // Handle category item click (e.g., Men > T-Shirts)
+  const handleCategoryItemClick = (categoryName, subcategoryName, productTypeName) => {
+    navigateToProducts({
+      category: categoryName,
+      subcategory: subcategoryName,
+      productType: productTypeName
+    });
+    setActiveTab(null);
+  };
+
+  // Handle search
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!searchQuery.trim() || searchQuery.length < 2) return;
+    
+    setIsSearching(true);
+    try {
+      // Navigate to products page with search query
+      navigateToProducts({ search: searchQuery.trim() });
+      setIsSearchOpen(false);
+      setSearchQuery('');
+    } catch (error) {
+      console.error('Search failed:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
   const getUserDisplayName = () => {
     if (!user) return "Hi!";
-    
     if (user.name) return user.name;
     if (user.username) return user.username;
     if (user.firstName && user.lastName) return `${user.firstName} ${user.lastName}`;
@@ -56,7 +106,6 @@ const Navbar = () => {
     return name.charAt(0).toUpperCase();
   };
 
-  // Handle logout
   const handleLogout = () => {
     dispatch(logoutSuccess());
     localStorage.removeItem('token');
@@ -83,9 +132,22 @@ const Navbar = () => {
     };
   }, [isSidebarOpen]);
 
+  // Transform category hierarchy to navbar format
+  const navbarItems = categoryHierarchy.map(category => {
+    const categoriesObj = {};
+    category.subcategories?.forEach(sub => {
+      categoriesObj[sub.name] = sub.productTypes?.map(type => type.name) || [];
+    });
+    return {
+      name: category.name.toUpperCase(),
+      categories: categoriesObj,
+      originalName: category.name
+    };
+  });
+
   return (
     <>
-      {/* 1. FULL SCREEN SEARCH OVERLAY */}
+      {/* Search Overlay */}
       <AnimatePresence>
         {isSearchOpen && (
           <motion.div
@@ -94,7 +156,6 @@ const Navbar = () => {
             exit={{ opacity: 0, y: -20 }}
             className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex flex-col"
           >
-            {/* White Search Header */}
             <div className="bg-white w-full p-4 shadow-lg">
               <div className="max-w-[1460px] mx-auto flex items-center gap-4">
                 <button 
@@ -104,22 +165,45 @@ const Navbar = () => {
                   <FaTimes className="text-xl text-gray-600" />
                 </button>
 
-                <div className="flex-1 flex items-center border border-[#777E5C] rounded-lg overflow-hidden h-[45px] shadow-sm">
+                <form onSubmit={handleSearch} className="flex-1 flex items-center border border-[#777E5C] rounded-lg overflow-hidden h-[45px] shadow-sm">
                   <div className="px-4 h-full flex justify-center items-center bg-[#F0F7E6]">
                     <FaSearch className="text-[#777E5C]" />
                   </div>
                   <input 
                     autoFocus
                     type="text" 
-                    placeholder="What are you looking for?" 
+                    placeholder="Search for products (e.g., T-Shirts, Kurta, Jeans)..." 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full h-full px-4 outline-none text-gray-700"
                   />
-                </div>
+                </form>
               </div>
               
               <div className="max-w-[1460px] mx-auto mt-3 px-14 text-xs text-[#777E5C] font-medium">
-                Enter 3 or more characters
+                {searchQuery.length < 2 ? 'Enter 2 or more characters to search' : 'Press Enter to search products'}
               </div>
+              
+              {/* Suggested Searches */}
+              {searchQuery.length >= 2 && (
+                <div className="max-w-[1460px] mx-auto mt-4 px-14">
+                  <p className="text-xs text-gray-500 mb-2">Popular searches:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {['T-Shirts', 'Kurta', 'Jeans', 'Dresses', 'Shirts'].map((suggestion) => (
+                      <button
+                        key={suggestion}
+                        onClick={() => {
+                          setSearchQuery(suggestion);
+                          handleSearch(new Event('submit'));
+                        }}
+                        className="px-3 py-1 bg-gray-100 rounded-full text-xs text-gray-600 hover:bg-[#F0F7E6] hover:text-[#777E5C] transition-colors"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div 
@@ -160,7 +244,7 @@ const Navbar = () => {
       }`}>
         <div className="max-w-[1460px] mx-auto px-4 flex items-center justify-between h-[60px]">
           
-          {/* Left Side: Logo and Hamburger Menu */}
+          {/* Left Side */}
           <div className="flex items-center gap-4">
             <button
               onClick={() => setIsSidebarOpen(true)}
@@ -178,7 +262,7 @@ const Navbar = () => {
 
             {/* Desktop Navigation Links */}
             <div className="hidden lg:flex items-center justify-between space-x-8 ml-12 gap-3">
-              {NAV_ITEMS.map((item) => (
+              {!loading && navbarItems.map((item) => (
                 <div
                   key={item.name}
                   className="relative h-full flex items-center group cursor-pointer"
@@ -204,7 +288,7 @@ const Navbar = () => {
             </div>
           </div>
 
-          {/* Right Side: Tools */}
+          {/* Right Side */}
           <div className="flex items-center gap-6 md:gap-9 text-gray-500">
             {/* Search Icon */}
             <div className="hidden sm:flex flex-col items-center cursor-pointer transition-colors group" onClick={() => setIsSearchOpen(true)}>
@@ -213,7 +297,10 @@ const Navbar = () => {
             </div>
             
             {/* Cart Icon */}
-            <div className="flex flex-col items-center cursor-pointer transition-colors group relative">
+            <div 
+              className="flex flex-col items-center cursor-pointer transition-colors group relative"
+              onClick={() => router.push('/cart')}
+            >
               <FaCartPlus className="text-xl text-[#777E5C] group-hover:text-[#5A6E4A]" />
               <span className="text-[10px] font-medium mt-1 uppercase text-[#777E5C] hidden sm:block group-hover:text-[#5A6E4A]">Cart</span>
               <span className="absolute -top-2 -right-2 bg-[#D1D88D] text-[#777E5C] text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold">
@@ -258,7 +345,6 @@ const Navbar = () => {
                   >
                     {isAuthenticated ? (
                       <>
-                        {/* User Info Section */}
                         <div className="p-5 border-b border-[#DFE0DC] bg-gradient-to-r from-[#F0F7E6] to-white">
                           <div className="flex items-center gap-3">
                             {user?.avatar ? (
@@ -287,23 +373,30 @@ const Navbar = () => {
                           </div>
                         </div>
 
-                        {/* Account Links */}
                         <div className="p-4 space-y-2">
-                          <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-[#F0F7E6] transition-colors cursor-pointer group">
+                          <div 
+                            className="flex items-center gap-3 p-2 rounded-lg hover:bg-[#F0F7E6] transition-colors cursor-pointer group"
+                            onClick={() => router.push('/account')}
+                          >
                             <FaUserCircle className="text-[#777E5C] text-lg group-hover:text-[#5A6E4A]" />
                             <span className="text-sm text-gray-700 group-hover:text-[#777E5C]">My Account</span>
                           </div>
-                          <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-[#F0F7E6] transition-colors cursor-pointer group">
+                          <div 
+                            className="flex items-center gap-3 p-2 rounded-lg hover:bg-[#F0F7E6] transition-colors cursor-pointer group"
+                            onClick={() => router.push('/orders')}
+                          >
                             <FaClipboardList className="text-[#777E5C] text-lg group-hover:text-[#5A6E4A]" />
                             <span className="text-sm text-gray-700 group-hover:text-[#777E5C]">My Orders</span>
                           </div>
-                          <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-[#F0F7E6] transition-colors cursor-pointer group">
+                          <div 
+                            className="flex items-center gap-3 p-2 rounded-lg hover:bg-[#F0F7E6] transition-colors cursor-pointer group"
+                            onClick={() => router.push('/wishlist')}
+                          >
                             <FaHeart className="text-[#777E5C] text-lg group-hover:text-[#5A6E4A]" />
                             <span className="text-sm text-gray-700 group-hover:text-[#777E5C]">Wishlist</span>
                           </div>
                         </div>
 
-                        {/* Logout Button */}
                         <div className="p-4 border-t border-[#DFE0DC]">
                           <button
                             onClick={handleLogout}
@@ -316,7 +409,6 @@ const Navbar = () => {
                       </>
                     ) : (
                       <>
-                        {/* Not Logged In Section */}
                         <div className="p-5 border-b border-[#DFE0DC]">
                           <p className="text-sm font-bold text-gray-800">WELCOME!</p>
                           <p className="text-xs text-gray-500 mt-1">To view account details</p>
@@ -329,11 +421,13 @@ const Navbar = () => {
                           >
                             Login
                           </button>
-                          
                         </div>
 
                         <div className="p-4 space-y-3">
-                          <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#777E5C] uppercase transition-colors">
+                          <p 
+                            className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#777E5C] uppercase transition-colors"
+                            onClick={() => router.push('/orders')}
+                          >
                             Orders
                           </p>
                           <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#777E5C] uppercase transition-colors">
@@ -369,7 +463,7 @@ const Navbar = () => {
 
         {/* Desktop Mega Menu Dropdown */}
         <AnimatePresence>
-          {activeTab && NAV_ITEMS.find(i => i.name === activeTab)?.categories && (
+          {activeTab && navbarItems.find(i => i.name === activeTab)?.categories && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -379,14 +473,25 @@ const Navbar = () => {
               className="absolute top-[60px] left-0 w-full bg-white shadow-xl border-t border-[#DFE0DC] py-8 z-[55] hidden lg:block"
             >
               <div className="max-w-[1400px] mx-auto px-6 grid grid-cols-5 gap-8">
-                {Object.entries(NAV_ITEMS.find(i => i.name === activeTab).categories).map(([title, links]) => (
+                {Object.entries(navbarItems.find(i => i.name === activeTab).categories).map(([title, links]) => (
                   <div key={title} className="flex flex-col">
                     <h3 className="text-[#777E5C] font-bold text-sm mb-4 uppercase">
                       {title}
                     </h3>
                     <ul className="space-y-2">
                       {links.map((link) => (
-                        <li key={link} className="text-gray-600 text-[13px] hover:text-[#777E5C] cursor-pointer transition-colors">
+                        <li 
+                          key={link} 
+                          className="text-gray-600 text-[13px] hover:text-[#777E5C] cursor-pointer transition-colors"
+                          onClick={() => {
+                            const categoryItem = navbarItems.find(i => i.name === activeTab);
+                            handleCategoryItemClick(
+                              categoryItem.originalName,
+                              title,
+                              link
+                            );
+                          }}
+                        >
                           {link}
                         </li>
                       ))}
@@ -409,7 +514,6 @@ const Navbar = () => {
             transition={{ type: 'tween', duration: 0.3 }}
             className="fixed top-0 left-0 w-[280px] h-full bg-white z-[80] shadow-2xl lg:hidden overflow-y-auto"
           >
-            {/* Sidebar Header */}
             <div className="flex items-center justify-between p-4 border-b border-[#DFE0DC]">
               <span className="text-xl font-bold font-serif text-[#777E5C]">AVILINE</span>
               <button
@@ -420,7 +524,6 @@ const Navbar = () => {
               </button>
             </div>
 
-            {/* User Profile Section in Sidebar */}
             <div className="p-4 border-b border-[#DFE0DC] bg-gradient-to-r from-[#F0F7E6] to-white">
               {isAuthenticated ? (
                 <div className="flex items-center gap-3">
@@ -460,37 +563,37 @@ const Navbar = () => {
               )}
             </div>
 
-            {/* Sidebar Content */}
             <div className="p-4">
               {/* Search Bar for Mobile */}
               <div className="mb-6">
-                <div className="flex items-center border border-[#DFE0DC] rounded-lg px-3 py-2 focus-within:border-[#777E5C] focus-within:ring-1 focus-within:ring-[#777E5C] transition-all">
+                <form onSubmit={handleSearch} className="flex items-center border border-[#DFE0DC] rounded-lg px-3 py-2 focus-within:border-[#777E5C] focus-within:ring-1 focus-within:ring-[#777E5C] transition-all">
                   <FaSearch className="text-[#777E5C] mr-2" />
                   <input
                     type="text"
                     placeholder="Search products..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                     className="flex-1 outline-none text-sm"
                   />
-                </div>
+                </form>
               </div>
 
               {/* Navigation Items */}
               <div className="space-y-2">
-                {NAV_ITEMS.map((item) => (
+                {!loading && navbarItems.map((item) => (
                   <div key={item.name} className="border-b border-[#DFE0DC]">
                     <button
                       onClick={() => setActiveMobileTab(activeMobileTab === item.name ? null : item.name)}
                       className="flex items-center justify-between w-full py-3 text-left"
                     >
                       <span className="text-sm font-semibold text-gray-800 hover:text-[#777E5C]">{item.name}</span>
-                      {item.categories && (
+                      {item.categories && Object.keys(item.categories).length > 0 && (
                         <span className="text-[#777E5C] text-lg">
                           {activeMobileTab === item.name ? '−' : '+'}
                         </span>
                       )}
                     </button>
                     
-                    {/* Mobile Submenu */}
                     {activeMobileTab === item.name && item.categories && (
                       <motion.div
                         initial={{ height: 0, opacity: 0 }}
@@ -505,7 +608,18 @@ const Navbar = () => {
                             </h3>
                             <ul className="space-y-1.5">
                               {links.map((link) => (
-                                <li key={link} className="text-gray-600 text-xs hover:text-[#777E5C] cursor-pointer">
+                                <li 
+                                  key={link} 
+                                  className="text-gray-600 text-xs hover:text-[#777E5C] cursor-pointer"
+                                  onClick={() => {
+                                    setIsSidebarOpen(false);
+                                    handleCategoryItemClick(
+                                      item.originalName,
+                                      title,
+                                      link
+                                    );
+                                  }}
+                                >
                                   {link}
                                 </li>
                               ))}
@@ -523,13 +637,22 @@ const Navbar = () => {
                 <div className="mt-6 pt-4 border-t border-[#DFE0DC]">
                   <div className="space-y-3">
                     <div className="space-y-2">
-                      <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#777E5C] uppercase transition-colors">
+                      <p 
+                        className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#777E5C] uppercase transition-colors"
+                        onClick={() => router.push('/account')}
+                      >
                         My Account
                       </p>
-                      <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#777E5C] uppercase transition-colors">
+                      <p 
+                        className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#777E5C] uppercase transition-colors"
+                        onClick={() => router.push('/orders')}
+                      >
                         My Orders
                       </p>
-                      <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#777E5C] uppercase transition-colors">
+                      <p 
+                        className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#777E5C] uppercase transition-colors"
+                        onClick={() => router.push('/wishlist')}
+                      >
                         Wishlist
                       </p>
                       <p className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-[#777E5C] uppercase transition-colors">

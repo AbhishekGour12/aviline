@@ -10,9 +10,16 @@ const nextConfig = {
       {
         protocol: "https",
         hostname: "randomuser.me",
-      }
+      },
+      {
+        protocol: "http",
+        hostname: "localhost",
+        port: "5000",
+        pathname: "/uploads/**",
+      },
     ],
   },
+  
   reactCompiler: true,
 };
 

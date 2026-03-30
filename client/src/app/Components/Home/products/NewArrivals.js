@@ -1,18 +1,51 @@
 "use client";
-import React, { useRef } from 'react';
-import { FaRegHeart, FaShareAlt, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
-
-const products = [
-  { id: 1, author: "Ankita Manot", mainImg: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=500", sideImgs: ["https://images.unsplash.com/photo-1554412930-c74f639c8a7b?w=200", "https://images.unsplash.com/photo-1581044777550-4cfa60707c03?w=200"], count: "+27" },
-  { id: 2, author: "Ankita Manot", mainImg: "https://images.unsplash.com/photo-1539109132381-3151b8a77dd3?w=500", sideImgs: ["https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200", "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=200"], count: "+28" },
-  { id: 3, author: "Ankita Manot", mainImg: "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=500", sideImgs: ["https://images.unsplash.com/photo-1594223274512-ad4803739b7c?w=200", "https://images.unsplash.com/photo-1598533123413-82c597c75825?w=200"], count: "+25" },
-  { id: 4, author: "Ankita Manot", mainImg: "https://images.unsplash.com/photo-1509631179647-0177331693ae?w=500", sideImgs: ["https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?w=200", "https://images.unsplash.com/photo-1549060279-7e168fcee0c2?w=200"], count: "+27" },
-  { id: 5, author: "Ankita Manot", mainImg: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=500", sideImgs: ["https://images.unsplash.com/photo-1554412930-c74f639c8a7b?w=200", "https://images.unsplash.com/photo-1581044777550-4cfa60707c03?w=200"], count: "+12" },
-  { id: 6, author: "Ankita Manot", mainImg: "https://images.unsplash.com/photo-1539109132381-3151b8a77dd3?w=500", sideImgs: ["https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200", "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=200"], count: "+15" },
-];
+import React, { useRef, useState, useEffect } from 'react';
+import { FaRegHeart, FaShareAlt, FaChevronLeft, FaChevronRight, FaStar, FaStarHalfAlt } from 'react-icons/fa';
+import { ProductApi } from '../../../lib/ProductApi';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
 const NewArrivals = () => {
   const scrollRef = useRef(null);
+  const router = useRouter();
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetchNewArrivals();
+  }, []);
+
+  const fetchNewArrivals = async () => {
+    try {
+      setLoading(true);
+      
+      // Calculate date 1 month ago
+      const oneMonthAgo = new Date();
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+      
+      // Fetch products created in the last month
+      const response = await ProductApi.getProducts({ 
+        limit: 10,
+        sortBy: 'createdAt',
+        sortOrder: 'desc'
+      });
+      
+      // Filter products created in the last month
+      const filteredProducts = response.products.filter(product => {
+        const productDate = new Date(product.createdAt);
+        return productDate >= oneMonthAgo;
+      });
+      
+      setProducts(filteredProducts);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to fetch new arrivals:', err);
+      setError('Failed to load new arrivals');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const scroll = (direction) => {
     if (scrollRef.current) {
@@ -24,6 +57,140 @@ const NewArrivals = () => {
       scrollRef.current.scrollTo({ left: scrollTo, behavior: 'smooth' });
     }
   };
+
+  // Updated: Redirect to products page with product type filter
+  const handleProductClick = (product) => {
+    // Build query parameters based on available product data
+    const queryParams = new URLSearchParams();
+    
+    // Priority: Use product type if available
+    if (product.productType) {
+      queryParams.set('type', product.productType);
+    }
+    
+    // Add category filter if available
+    if (product.category) {
+      queryParams.set('category', product.category);
+    }
+    
+    // Add subcategory filter if available
+    if (product.subcategory) {
+      queryParams.set('subcategory', product.subcategory);
+    }
+    
+    const queryString = queryParams.toString();
+    const redirectUrl = queryString ? `/products?${queryString}` : '/products';
+    
+    router.push(redirectUrl);
+  };
+
+  const handleWishlistClick = (e, productId) => {
+    e.stopPropagation();
+    // Handle wishlist functionality here
+    console.log('Add to wishlist:', productId);
+  };
+
+  const handleShareClick = (e, product) => {
+    e.stopPropagation();
+    // Handle share functionality
+    const shareUrl = `${window.location.origin}/products?type=${encodeURIComponent(product.productType)}`;
+    
+    if (navigator.share) {
+      navigator.share({
+        title: product.name,
+        text: `Check out ${product.name}`,
+        url: shareUrl
+      }).catch(() => {
+        // Fallback: copy to clipboard
+        navigator.clipboard.writeText(shareUrl);
+        alert('Link copied to clipboard!');
+      });
+    } else {
+      // Fallback: copy to clipboard
+      navigator.clipboard.writeText(shareUrl);
+      alert('Link copied to clipboard!');
+    }
+  };
+
+  const renderRatingStars = (rating) => {
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+    
+    return (
+      <div className="flex items-center gap-0.5">
+        {[...Array(fullStars)].map((_, i) => (
+          <FaStar key={`full-${i}`} className="text-yellow-400 text-xs" />
+        ))}
+        {hasHalfStar && <FaStarHalfAlt className="text-yellow-400 text-xs" />}
+        {[...Array(emptyStars)].map((_, i) => (
+          <FaStar key={`empty-${i}`} className="text-gray-300 text-xs" />
+        ))}
+        <span className="text-xs text-gray-500 ml-1">({rating})</span>
+      </div>
+    );
+  };
+
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(price);
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    return `${Math.floor(diffDays / 30)} months ago`;
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-[1460px] mx-auto py-10">
+        <div className="text-3xl font-serif font-thin text-gray-800 mb-4">#New Arrivals</div>
+        <div className="flex justify-center items-center py-20">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#777E5C]"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-[1460px] mx-auto py-10">
+        <div className="text-3xl font-serif font-thin text-gray-800 mb-4">#New Arrivals</div>
+        <div className="text-center py-10 text-red-500">
+          <p>{error}</p>
+          <button 
+            onClick={fetchNewArrivals}
+            className="mt-4 px-4 py-2 bg-[#777E5C] text-white rounded-lg hover:bg-[#5A6E4A] transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (products.length === 0) {
+    return (
+      <div className="max-w-[1460px] mx-auto py-10">
+        <div className="text-3xl font-serif font-thin text-gray-800 mb-4">#New Arrivals</div>
+        <div className="text-center py-10 text-gray-500">
+          No new arrivals this month. Check back soon!
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-[1460px] mx-auto py-10 relative group">
@@ -42,7 +209,11 @@ const NewArrivals = () => {
       >
         <FaChevronRight />
       </button>
-       <div className="text-3xl font-serif font-thin text-gray-800 mb-4 max-sm:text-2xl max-md:p-3">#New Arrivals</div>
+      
+      <div className="text-3xl font-serif font-thin text-gray-800 mb-4 max-sm:text-2xl max-md:p-3">
+        #New Arrivals
+      </div>
+      
       {/* Horizontal Scroll Container */}
       <div 
         ref={scrollRef}
@@ -51,48 +222,181 @@ const NewArrivals = () => {
        
         {products.map((item) => (
           <div 
-            key={item.id} 
-            className="flex-none w-[280px] sm:w-[330px] bg-white border border-gray-100 rounded-xl overflow-hidden flex flex-col snap-start shadow-sm"
+            key={item._id} 
+            onClick={() => handleProductClick(item)}
+            className="flex-none w-[280px] sm:w-[330px] bg-white border border-gray-100 rounded-xl overflow-hidden flex flex-col snap-start shadow-sm hover:shadow-lg transition-shadow cursor-pointer"
           >
-            {/* 1. Header: Author Info */}
-            <div className="p-3 flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-gray-200 overflow-hidden">
-                <img src={`https://i.pravatar.cc/150?u=${item.id}`} alt="avatar" className="w-full h-full object-cover" />
+            {/* 1. Header: Product Name & Date */}
+            <div className="p-3 flex items-center justify-between border-b border-gray-50">
+              <div className="flex-1">
+                <h3 className="text-sm font-bold text-gray-800 line-clamp-1">
+                  {item.name}
+                </h3>
+                {item.productType && (
+                  <p className="text-[10px] text-gray-500 mt-0.5">
+                    {item.productType}
+                  </p>
+                )}
               </div>
-              <div className="text-[10px] font-bold text-gray-500 uppercase">
-                By <span className="text-black">{item.author}</span>
-              </div>
+              {item.createdAt && (
+                <div className="text-[10px] text-[#777E5C] font-medium bg-[#F0F7E6] px-2 py-1 rounded-full">
+                  New • {formatDate(item.createdAt)}
+                </div>
+              )}
             </div>
 
             {/* 2. Image Collage Section */}
             <div className="flex px-2 gap-1 h-[320px] sm:h-[380px]">
               <div className="w-[68%] h-full bg-gray-50 overflow-hidden rounded-l-md">
-                <img src={item.mainImg} alt="main" className="w-full h-full object-cover" />
+                {item.imageUrls && item.imageUrls[0] ? (
+                  <div className="relative w-full h-full">
+                    <Image
+                      src={item.imageUrls[0].startsWith('/uploads') 
+                        ? `${process.env.NEXT_PUBLIC_API}${item.imageUrls[0]}` 
+                        : item.imageUrls[0]}
+                      alt={item.name}
+                      fill
+                      unoptimized
+                      className="object-cover hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                    <span className="text-gray-400 text-sm">No Image</span>
+                  </div>
+                )}
               </div>
               <div className="w-[32%] flex flex-col gap-1 h-full">
-                {item.sideImgs.slice(0, 2).map((img, idx) => (
-                  <div key={idx} className="h-1/3 bg-gray-50 overflow-hidden rounded-tr-md">
-                    <img src={img} alt="variant" className="w-full h-full object-cover" />
-                  </div>
-                ))}
+                {/* First side image */}
+                <div className="h-1/3 bg-gray-50 overflow-hidden rounded-tr-md">
+                  {item.imageUrls && item.imageUrls[1] ? (
+                    <div className="relative w-full h-full">
+                      <Image
+                        src={item.imageUrls[1].startsWith('/uploads') 
+                          ? `${process.env.NEXT_PUBLIC_API}${item.imageUrls[1]}` 
+                          : item.imageUrls[1]}
+                        alt={`${item.name} view 2`}
+                        fill
+                        unoptimized
+                        className="object-cover hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                      <span className="text-gray-400 text-xs">No Image</span>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Second side image */}
+                <div className="h-1/3 bg-gray-50 overflow-hidden">
+                  {item.imageUrls && item.imageUrls[2] ? (
+                    <div className="relative w-full h-full">
+                      <Image
+                        src={item.imageUrls[2].startsWith('/uploads') 
+                          ? `${process.env.NEXT_PUBLIC_API}${item.imageUrls[2]}` 
+                          : item.imageUrls[2]}
+                        alt={`${item.name} view 3`}
+                        fill
+                        unoptimized
+                        className="object-cover hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                      <span className="text-gray-400 text-xs">No Image</span>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Count badge - shows number of color variants or sizes */}
                 <div className="h-1/3 bg-gray-900 relative overflow-hidden rounded-br-md">
-                   <img src={item.sideImgs[0]} alt="variant" className="w-full h-full object-cover opacity-40" />
-                   <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
-                    <span className="text-lg font-bold">{item.count}</span>
-                    <span className="text-[8px] uppercase font-medium">Products</span>
-                   </div>
+                  {item.imageUrls && item.imageUrls[0] ? (
+                    <>
+                      <div className="relative w-full h-full">
+                        <Image
+                          src={item.imageUrls[0].startsWith('/uploads') 
+                            ? `${process.env.NEXT_PUBLIC_API}${item.imageUrls[0]}` 
+                            : item.imageUrls[0]}
+                          alt={`${item.name} overlay`}
+                          fill
+                          unoptimized
+                          className="object-cover opacity-40"
+                        />
+                      </div>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
+                        <span className="text-lg font-bold">
+                          {item.colors?.length || item.sizes?.length || 0}
+                        </span>
+                        <span className="text-[8px] uppercase font-medium">
+                          {item.colors?.length ? 'Colors' : 'Variants'}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
+                      <span className="text-lg font-bold">
+                        {item.sizes?.length || 0}
+                      </span>
+                      <span className="text-[8px] uppercase font-medium">Sizes</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
             {/* 3. Footer */}
-            <div className="p-4 mt-auto flex items-center justify-between border-t border-gray-50">
-              <h3 className="text-[11px] font-bold text-gray-800 uppercase">
-                Aviline Exclusive Story
-              </h3>
-              <div className="flex items-center gap-3 text-gray-400">
-                <FaRegHeart className="text-lg cursor-pointer hover:text-[#d41d40] transition-colors" />
-                <FaShareAlt className="text-md cursor-pointer hover:text-black transition-colors" />
+            <div className="p-4 mt-auto space-y-2">
+              {/* Price Section */}
+              <div className="flex items-center justify-between">
+                <div>
+                  {item.offerPercent > 0 ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-bold text-[#777E5C]">
+                        {formatPrice(item.discountedPrice || item.price)}
+                      </span>
+                      <span className="text-xs text-gray-400 line-through">
+                        {formatPrice(item.price)}
+                      </span>
+                      <span className="text-xs text-green-600 font-semibold">
+                        -{item.offerPercent}%
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-lg font-bold text-[#777E5C]">
+                      {formatPrice(item.price)}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 text-gray-400">
+                  <FaRegHeart 
+                    className="text-lg cursor-pointer hover:text-[#d41d40] transition-colors" 
+                    onClick={(e) => handleWishlistClick(e, item._id)}
+                  />
+                  <FaShareAlt 
+                    className="text-md cursor-pointer hover:text-black transition-colors" 
+                    onClick={(e) => handleShareClick(e, item)}
+                  />
+                </div>
+              </div>
+              
+              {/* Rating Section */}
+              {item.rating > 0 && (
+                <div className="flex items-center justify-between">
+                  {renderRatingStars(item.rating)}
+                  {item.stock > 0 ? (
+                    <span className="text-xs text-green-600">In Stock</span>
+                  ) : (
+                    <span className="text-xs text-red-500">Out of Stock</span>
+                  )}
+                </div>
+              )}
+              
+              {/* Category Info */}
+              <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                <span>{item.category}</span>
+                <span>•</span>
+                <span>{item.subcategory}</span>
               </div>
             </div>
           </div>

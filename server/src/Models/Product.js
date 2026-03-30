@@ -1,6 +1,83 @@
 // models/EcommerceProduct.js
 import mongoose from "mongoose";
 
+// Category Schema
+const CategorySchema = new mongoose.Schema({
+  name: { 
+    type: String, 
+    required: true,
+    unique: true,
+    trim: true
+  },
+  order: {
+    type: Number,
+    default: 0
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  }
+});
+
+// Subcategory Schema
+const SubcategorySchema = new mongoose.Schema({
+  name: { 
+    type: String, 
+    required: true,
+    trim: true
+  },
+  categoryId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category',
+    required: true
+  },
+  order: {
+    type: Number,
+    default: 0
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  }
+});
+
+// Product Type Schema
+const ProductTypeSchema = new mongoose.Schema({
+  name: { 
+    type: String, 
+    required: true,
+    trim: true
+  },
+  subcategoryId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Subcategory',
+    required: true
+  },
+  order: {
+    type: Number,
+    default: 0
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  }
+});
+
+// Fabric Type Schema
+const FabricTypeSchema = new mongoose.Schema({
+  name: { 
+    type: String, 
+    required: true,
+    unique: true,
+    trim: true
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  }
+});
+
+// Product Schema
 const EcommerceProductSchema = new mongoose.Schema(
   {
     // Basic Information
@@ -50,36 +127,43 @@ const EcommerceProductSchema = new mongoose.Schema(
       type: Number, 
       required: true,
       min: 0,
-      
+      default: 0.5
     },
-    length: { type: Number, default: 0 },
-    breadth: { type: Number, default: 0 },
-    height: { type: Number, default: 0 },
     
-    // Categorization
-    category: { 
-      type: String, 
-      required: true,
-      trim: true,
-      index: true
+    // Hierarchical Categories
+    categoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Category',
+      required: true
     },
-    subcategory: { 
+    category: {
       type: String,
-      required: true,
-      trim: true
+      required: true
     },
-    
-    // Available categories (admin editable)
-    availableCategories: {
-      type: Map,
-      of: [String],
-      default: {
-        'Wool': ['Jumpers', 'Cardigans', 'Scarves', 'Hats'],
-        'Cotton': ['T-Shirts', 'Shirts', 'Dresses', 'Pants'],
-        'Denim': ['Jeans', 'Jackets', 'Shorts', 'Skirts'],
-        'Leather': ['Jackets', 'Bags', 'Belts', 'Shoes'],
-        'Linen': ['Shirts', 'Pants', 'Dresses', 'Suits']
-      }
+    subcategoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Subcategory',
+      required: true
+    },
+    subcategory: {
+      type: String,
+      required: true
+    },
+    productTypeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ProductType',
+      required: true
+    },
+    productType: {
+      type: String,
+      required: true
+    },
+    fabricTypeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'FabricType'
+    },
+    fabricType: {
+      type: String
     },
     
     // Size & Color Variations
@@ -98,21 +182,6 @@ const EcommerceProductSchema = new mongoose.Schema(
       hexCode: { type: String, default: '#000000' },
       images: [String]
     }],
-    
-    // Available sizes (global list)
-    availableSizes: {
-      type: [String],
-      default: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL']
-    },
-    
-    // Available colors (global list)
-    availableColors: {
-      type: [String],
-      default: [
-        'Red', 'Blue', 'Green', 'Black', 'White', 'Yellow', 'Purple', 'Orange',
-        'Brown', 'Pink', 'Gray', 'Navy', 'Maroon', 'Teal', 'Olive', 'Coral'
-      ]
-    },
     
     // Images
     imageUrls: { 
@@ -176,88 +245,46 @@ const EcommerceProductSchema = new mongoose.Schema(
 
 // Indexes for better query performance
 EcommerceProductSchema.index({ name: 'text', description: 'text' });
-EcommerceProductSchema.index({ category: 1, subcategory: 1 });
+EcommerceProductSchema.index({ category: 1, subcategory: 1, productType: 1 });
 EcommerceProductSchema.index({ price: 1 });
 EcommerceProductSchema.index({ isFeatured: 1 });
 EcommerceProductSchema.index({ status: 1 });
 EcommerceProductSchema.index({ createdAt: -1 });
 
-// Pre-save middleware to calculate derived fields
-EcommerceProductSchema.pre('save', function (next) {
-  // Calculate discounted price based on offer percent
-  let finalPrice = this.price;
-  
-  if (this.offerPercent > 0) {
+
+
+// Alternative: Using function without parameters if not needed
+ EcommerceProductSchema.pre('save', function() {
+//   // Calculate discounted price based on offer percent
+    let finalPrice = this.price;
+    if (this.offerPercent > 0) {
     const discount = (this.price * this.offerPercent) / 100;
     finalPrice = this.price - discount;
-    this.discountedPrice = parseFloat(finalPrice.toFixed(2));
-    this.offerPrice = this.discountedPrice;
-  } else {
-    this.discountedPrice = this.price;
-    this.offerPrice = this.price;
-  }
-  
-  // Calculate GST
-  const gstMultiplier = this.gstPercent / 100;
-  this.gstAmount = parseFloat((this.discountedPrice * gstMultiplier).toFixed(2));
-  this.totalPrice = parseFloat((this.discountedPrice + this.gstAmount).toFixed(2));
-  
-  // Set status based on stock
-  if (this.stock <= 0) {
-    this.status = 'out-of-stock';
-  } else if (this.stock < 10) {
-    this.status = 'low-stock';
-  } else {
-    this.status = 'active';
-  }
-  
-  
-});
+     this.discountedPrice = parseFloat(finalPrice.toFixed(2));
+     this.offerPrice = this.discountedPrice;
+   } else {
+     this.discountedPrice = this.price;
+     this.offerPrice = this.price;
+   }
+   
+   // Calculate GST
+   const gstMultiplier = this.gstPercent / 100;
+   this.gstAmount = parseFloat((this.discountedPrice * gstMultiplier).toFixed(2));
+   this.totalPrice = parseFloat((this.discountedPrice + this.gstAmount).toFixed(2));
+   
+   // Set status based on stock
+   if (this.stock <= 0) {
+     this.status = 'out-of-stock';
+   } else if (this.stock < 10) {
+     this.status = 'low-stock';
+   } else {
+     this.status = 'active';
+   }
+ });
 
-// Static method to get available categories
-EcommerceProductSchema.statics.getCategories = async function() {
-  const categories = await this.aggregate([
-    { $match: { status: 'active' } },
-    { $group: { 
-      _id: { category: "$category", subcategory: "$subcategory" } 
-    }},
-    { $group: { 
-      _id: "$_id.category", 
-      subcategories: { $addToSet: "$_id.subcategory" } 
-    }},
-    { $sort: { _id: 1 } }
-  ]);
-  
-  const result = {};
-  categories.forEach(cat => {
-    result[cat._id] = cat.subcategories;
-  });
-  
-  return result;
-};
-
-// Static method to get available colors
-EcommerceProductSchema.statics.getColors = async function() {
-  const colors = await this.aggregate([
-    { $unwind: "$colors" },
-    { $group: { _id: "$colors" } },
-    { $sort: { _id: 1 } }
-  ]);
-  
-  return colors.map(c => c._id);
-};
-
-// Static method to get available sizes
-EcommerceProductSchema.statics.getSizes = async function() {
-  const sizes = await this.aggregate([
-    { $unwind: "$sizes" },
-    { $group: { _id: "$sizes" } },
-    { $sort: { _id: 1 } }
-  ]);
-  
-  return sizes.map(s => s._id);
-};
-
-const Product = mongoose.model("EcommerceProduct", EcommerceProductSchema);
-
-export default Product;
+// Models
+export const Category = mongoose.model("Category", CategorySchema);
+export const Subcategory = mongoose.model("Subcategory", SubcategorySchema);
+export const ProductType = mongoose.model("ProductType", ProductTypeSchema);
+export const FabricType = mongoose.model("FabricType", FabricTypeSchema);
+export const Product = mongoose.model("EcommerceProduct", EcommerceProductSchema);
