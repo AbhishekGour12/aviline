@@ -184,7 +184,7 @@ const ProductCard = ({ product, onWishlistToggle, isWishlisted }) => {
         {product.imageUrls && product.imageUrls[0] && (
           <Image
             src={product.imageUrls[0].startsWith('/uploads') 
-              ? `${process.env.NEXT_PUBLIC_API}${product.imageUrls[0]}` 
+              ? `${process.env.NEXT_PUBLIC_IMAGE_URL}${product.imageUrls[0]}` 
               : product.imageUrls[0]}
             alt={product.name}
             fill

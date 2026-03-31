@@ -252,7 +252,7 @@ const NewArrivals = () => {
                   <div className="relative w-full h-full">
                     <Image
                       src={item.imageUrls[0].startsWith('/uploads') 
-                        ? `${process.env.NEXT_PUBLIC_API}${item.imageUrls[0]}` 
+                        ? `${process.env.NEXT_PUBLIC_IMAGE_URL}${item.imageUrls[0]}` 
                         : item.imageUrls[0]}
                       alt={item.name}
                       fill
@@ -273,7 +273,7 @@ const NewArrivals = () => {
                     <div className="relative w-full h-full">
                       <Image
                         src={item.imageUrls[1].startsWith('/uploads') 
-                          ? `${process.env.NEXT_PUBLIC_API}${item.imageUrls[1]}` 
+                          ? `${process.env.NEXT_PUBLIC_IMAGE_URL}${item.imageUrls[1]}` 
                           : item.imageUrls[1]}
                         alt={`${item.name} view 2`}
                         fill
@@ -294,7 +294,7 @@ const NewArrivals = () => {
                     <div className="relative w-full h-full">
                       <Image
                         src={item.imageUrls[2].startsWith('/uploads') 
-                          ? `${process.env.NEXT_PUBLIC_API}${item.imageUrls[2]}` 
+                          ? `${process.env.NEXT_PUBLIC_IMAGE_URL}${item.imageUrls[2]}` 
                           : item.imageUrls[2]}
                         alt={`${item.name} view 3`}
                         fill
@@ -316,7 +316,7 @@ const NewArrivals = () => {
                       <div className="relative w-full h-full">
                         <Image
                           src={item.imageUrls[0].startsWith('/uploads') 
-                            ? `${process.env.NEXT_PUBLIC_API}${item.imageUrls[0]}` 
+                            ? `${process.env.NEXT_PUBLIC_IMAGE_URL}${item.imageUrls[0]}` 
                             : item.imageUrls[0]}
                           alt={`${item.name} overlay`}
                           fill

@@ -221,7 +221,7 @@ const BestSellers = () => {
                 {item.imageUrls && item.imageUrls[0] ? (
                   <div className="relative w-full h-full">
                     <Image
-                      src={`${process.env.NEXT_PUBLIC_API}${item.imageUrls[0]}`}
+                      src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${item.imageUrls[0]}`}
                       alt={item.name}
                       fill
                       unoptimized
@@ -240,7 +240,7 @@ const BestSellers = () => {
                   {item.imageUrls && item.imageUrls[1] ? (
                     <div className="relative w-full h-full">
                       <Image
-                        src={`${process.env.NEXT_PUBLIC_API}${item.imageUrls[1]}`}
+                        src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${item.imageUrls[1]}`}
                         alt={`${item.name} view 2`}
                         fill
                         unoptimized
@@ -259,7 +259,7 @@ const BestSellers = () => {
                   {item.imageUrls && item.imageUrls[2] ? (
                     <div className="relative w-full h-full">
                       <Image
-                        src={`${process.env.NEXT_PUBLIC_API}${item.imageUrls[2]}`}
+                        src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${item.imageUrls[2]}`}
                         alt={`${item.name} view 3`}
                         fill
                         unoptimized
@@ -279,7 +279,7 @@ const BestSellers = () => {
                     <>
                       <div className="relative w-full h-full">
                         <Image
-                          src={`${process.env.NEXT_PUBLIC_API}${item.imageUrls[0]}`}
+                          src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${item.imageUrls[0]}`}
                           alt={`${item.name} overlay`}
                           fill
                           unoptimized
