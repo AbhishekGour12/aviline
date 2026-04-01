@@ -1,9 +1,10 @@
 "use client";
 import React, { useRef, useState, useEffect } from 'react';
-import { FaRegHeart, FaShareAlt, FaChevronLeft, FaChevronRight, FaStar, FaStarHalfAlt } from 'react-icons/fa';
+import { FaRegHeart, FaShareAlt, FaChevronLeft, FaChevronRight, FaStar, FaStarHalfAlt, FaHeart } from 'react-icons/fa';
 import { ProductApi } from '../../../lib/ProductApi';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+
 
 const NewArrivals = () => {
   const scrollRef = useRef(null);
@@ -11,7 +12,8 @@ const NewArrivals = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
+const [likedProducts, setLikedProducts] = useState({});
+  const [likeCounts, setLikeCounts] = useState({});
   useEffect(() => {
     fetchNewArrivals();
   }, []);
@@ -36,6 +38,9 @@ const NewArrivals = () => {
         const productDate = new Date(product.createdAt);
         return productDate >= oneMonthAgo;
       });
+      // After fetching products, get their like status and counts
+      await fetchProductsLikeStatus(response.products);
+      await fetchProductsLikeCounts(response.products);
       
       setProducts(filteredProducts);
       setError(null);
@@ -55,6 +60,57 @@ const NewArrivals = () => {
         : scrollLeft + clientWidth / 1.5;
       
       scrollRef.current.scrollTo({ left: scrollTo, behavior: 'smooth' });
+    }
+  };
+
+   // Fetch like status for all products
+    const fetchProductsLikeStatus = async (productsList) => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return; // User not logged in
+  
+        const likeStatusPromises = productsList.map(async (product) => {
+          try {
+            const response = await ProductApi.checkUserInterest(product._id);
+            return { productId: product._id, isLiked: response.isLiked };
+          } catch (error) {
+            //console.error(`Failed to fetch like status for product ${product._id}:`, error);
+            return { productId: product._id, isLiked: false };
+          }
+        });
+  
+        const results = await Promise.all(likeStatusPromises);
+        const likedMap = {};
+        results.forEach(({ productId, isLiked }) => {
+          likedMap[productId] = isLiked;
+        });
+        setLikedProducts(likedMap);
+      } catch (error) {
+        //console.error('Error fetching like statuses:', error);
+      }
+    };
+  
+// Fetch like counts for all products
+  const fetchProductsLikeCounts = async (productsList) => {
+    try {
+      const countPromises = productsList.map(async (product) => {
+        try {
+          const response = await ProductApi.getProductLikesCount(product._id);
+          return { productId: product._id, count: response.count };
+        } catch (error) {
+          //console.error(`Failed to fetch like count for product ${product._id}:`, error);
+          return { productId: product._id, count: 0 };
+        }
+      });
+
+      const results = await Promise.all(countPromises);
+      const countsMap = {};
+      results.forEach(({ productId, count }) => {
+        countsMap[productId] = count;
+      });
+      setLikeCounts(countsMap);
+    } catch (error) {
+     // console.error('Error fetching like counts:', error);
     }
   };
 
@@ -83,12 +139,63 @@ const NewArrivals = () => {
     
     router.push(redirectUrl);
   };
-
-  const handleWishlistClick = (e, productId) => {
+// Handle like/unlike
+  const handleWishlistClick = async (e, productId) => {
     e.stopPropagation();
-    // Handle wishlist functionality here
-    console.log('Add to wishlist:', productId);
+    
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        // Redirect to login or show login modal
+        router.push('/Login');
+        return;
+      }
+
+      const isCurrentlyLiked = likedProducts[productId] || false;
+      
+      // Optimistic update
+      setLikedProducts(prev => ({
+        ...prev,
+        [productId]: !isCurrentlyLiked
+      }));
+      
+      // Optimistic update for count
+      setLikeCounts(prev => ({
+        ...prev,
+        [productId]: isCurrentlyLiked 
+          ? (prev[productId] || 0) - 1 
+          : (prev[productId] || 0) + 1
+      }));
+
+      // API call
+      if (!isCurrentlyLiked) {
+        await ProductApi.addUserInterest(productId);
+      } else {
+        await ProductApi.removeUserInterest(productId);
+      }
+      
+    } catch (error) {
+      // Revert on error
+      
+      
+      // Revert optimistic updates
+      const isCurrentlyLiked = likedProducts[productId] || false;
+      setLikedProducts(prev => ({
+        ...prev,
+        [productId]: isCurrentlyLiked
+      }));
+      
+      setLikeCounts(prev => ({
+        ...prev,
+        [productId]: isCurrentlyLiked 
+          ? (prev[productId] || 0) + 1 
+          : (prev[productId] || 0) - 1
+      }));
+      
+      alert('Failed to update like status. Please try again.');
+    }
   };
+
 
   const handleShareClick = (e, product) => {
     e.stopPropagation();
@@ -369,14 +476,31 @@ const NewArrivals = () => {
                   )}
                 </div>
                 <div className="flex items-center gap-3 text-gray-400">
-                  <FaRegHeart 
-                    className="text-lg cursor-pointer hover:text-[#d41d40] transition-colors" 
-                    onClick={(e) => handleWishlistClick(e, item._id)}
-                  />
-                  <FaShareAlt 
-                    className="text-md cursor-pointer hover:text-black transition-colors" 
-                    onClick={(e) => handleShareClick(e, item)}
-                  />
+                <div className="flex items-center gap-3">
+                                  {/* Like button with count */}
+                                  <div className="flex items-center gap-1  p-1">
+                                    <button
+                                      onClick={(e) => handleWishlistClick(e, item._id)}
+                                      className="text-gray-400 hover:text-[#d41d40] transition-colors hover:cursor-pointer"
+                                    >
+                                      {likedProducts[item._id] ? (
+                                        <FaHeart className="text-lg text-[#d41d40] overflow-hidden" />
+                                      ) : (
+                                        <FaRegHeart className="text-lg" />
+                                      )}
+                                    </button>
+                                    {likeCounts[item._id] > 0 && (
+                                      <span className="text-xs text-gray-500 ml-2">
+                                        {likeCounts[item._id]}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <FaShareAlt 
+                                    className="text-md cursor-pointer hover:text-black transition-colors" 
+                                    onClick={(e) => handleShareClick(e, item)}
+                                  />
+                                </div>
+                  
                 </div>
               </div>
               

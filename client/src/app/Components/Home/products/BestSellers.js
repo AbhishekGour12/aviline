@@ -1,6 +1,6 @@
 "use client";
 import React, { useRef, useState, useEffect } from 'react';
-import { FaRegHeart, FaShareAlt, FaChevronLeft, FaChevronRight, FaStar, FaStarHalfAlt } from 'react-icons/fa';
+import { FaRegHeart, FaHeart, FaShareAlt, FaChevronLeft, FaChevronRight, FaStar, FaStarHalfAlt } from 'react-icons/fa';
 import { ProductApi } from '../../../lib/ProductApi';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -11,6 +11,8 @@ const BestSellers = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [likedProducts, setLikedProducts] = useState({});
+  const [likeCounts, setLikeCounts] = useState({});
 
   useEffect(() => {
     fetchFeaturedProducts();
@@ -28,59 +30,126 @@ const BestSellers = () => {
       });
       
       setProducts(response.products);
+      
+      // After fetching products, get their like status and counts
+      await fetchProductsLikeStatus(response.products);
+      await fetchProductsLikeCounts(response.products);
+      
       setError(null);
     } catch (err) {
-      console.error('Failed to fetch featured products:', err);
+     // console.error('Failed to fetch featured products:', err);
       setError('Failed to load products');
     } finally {
       setLoading(false);
     }
   };
 
-  const scroll = (direction) => {
-    if (scrollRef.current) {
-      const { scrollLeft, clientWidth } = scrollRef.current;
-      const scrollTo = direction === 'left' 
-        ? scrollLeft - clientWidth / 1.5 
-        : scrollLeft + clientWidth / 1.5;
-      
-      scrollRef.current.scrollTo({ left: scrollTo, behavior: 'smooth' });
+  // Fetch like status for all products
+  const fetchProductsLikeStatus = async (productsList) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return; // User not logged in
+
+      const likeStatusPromises = productsList.map(async (product) => {
+        try {
+          const response = await ProductApi.checkUserInterest(product._id);
+          return { productId: product._id, isLiked: response.isLiked };
+        } catch (error) {
+          //console.error(`Failed to fetch like status for product ${product._id}:`, error);
+          return { productId: product._id, isLiked: false };
+        }
+      });
+
+      const results = await Promise.all(likeStatusPromises);
+      const likedMap = {};
+      results.forEach(({ productId, isLiked }) => {
+        likedMap[productId] = isLiked;
+      });
+      setLikedProducts(likedMap);
+    } catch (error) {
+      //console.error('Error fetching like statuses:', error);
     }
   };
 
-  // Updated: Redirect to products page with product type filter
-  const handleProductClick = (product) => {
-    // Build query parameters based on available product data
-    const queryParams = new URLSearchParams();
-    
-    // Priority: Use product type if available
-    if (product.productType) {
-      queryParams.set('type', product.productType);
+  // Fetch like counts for all products
+  const fetchProductsLikeCounts = async (productsList) => {
+    try {
+      const countPromises = productsList.map(async (product) => {
+        try {
+          const response = await ProductApi.getProductLikesCount(product._id);
+          return { productId: product._id, count: response.count };
+        } catch (error) {
+          //console.error(`Failed to fetch like count for product ${product._id}:`, error);
+          return { productId: product._id, count: 0 };
+        }
+      });
+
+      const results = await Promise.all(countPromises);
+      const countsMap = {};
+      results.forEach(({ productId, count }) => {
+        countsMap[productId] = count;
+      });
+      setLikeCounts(countsMap);
+    } catch (error) {
+     // console.error('Error fetching like counts:', error);
     }
-    
-    // Add category filter if available
-    if (product.category) {
-      queryParams.set('category', product.category);
-    }
-    
-    // Add subcategory filter if available
-    if (product.subcategory) {
-      queryParams.set('subcategory', product.subcategory);
-    }
-    
-    // Add search query for product name (optional)
-    // queryParams.set('q', product.name);
-    
-    const queryString = queryParams.toString();
-    const redirectUrl = queryString ? `/products?${queryString}` : '/products';
-    
-    router.push(redirectUrl);
   };
 
-  const handleWishlistClick = (e, productId) => {
+  // Handle like/unlike
+  const handleWishlistClick = async (e, productId) => {
     e.stopPropagation();
-    // Handle wishlist functionality here
-    console.log('Add to wishlist:', productId);
+    
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        // Redirect to login or show login modal
+        router.push('/Login');
+        return;
+      }
+
+      const isCurrentlyLiked = likedProducts[productId] || false;
+      
+      // Optimistic update
+      setLikedProducts(prev => ({
+        ...prev,
+        [productId]: !isCurrentlyLiked
+      }));
+      
+      // Optimistic update for count
+      setLikeCounts(prev => ({
+        ...prev,
+        [productId]: isCurrentlyLiked 
+          ? (prev[productId] || 0) - 1 
+          : (prev[productId] || 0) + 1
+      }));
+
+      // API call
+      if (!isCurrentlyLiked) {
+        await ProductApi.addUserInterest(productId);
+      } else {
+        await ProductApi.removeUserInterest(productId);
+      }
+      
+    } catch (error) {
+      // Revert on error
+      
+      
+      // Revert optimistic updates
+      const isCurrentlyLiked = likedProducts[productId] || false;
+      setLikedProducts(prev => ({
+        ...prev,
+        [productId]: isCurrentlyLiked
+      }));
+      
+      setLikeCounts(prev => ({
+        ...prev,
+        [productId]: isCurrentlyLiked 
+          ? (prev[productId] || 0) + 1 
+          : (prev[productId] || 0) - 1
+      }));
+      
+      alert('Failed to update like status. Please try again.');
+    }
   };
 
   const handleShareClick = (e, product) => {
@@ -98,6 +167,38 @@ const BestSellers = () => {
       navigator.clipboard.writeText(url);
       alert('Link copied to clipboard!');
     }
+  };
+
+  const scroll = (direction) => {
+    if (scrollRef.current) {
+      const { scrollLeft, clientWidth } = scrollRef.current;
+      const scrollTo = direction === 'left' 
+        ? scrollLeft - clientWidth / 1.5 
+        : scrollLeft + clientWidth / 1.5;
+      
+      scrollRef.current.scrollTo({ left: scrollTo, behavior: 'smooth' });
+    }
+  };
+
+  const handleProductClick = (product) => {
+    const queryParams = new URLSearchParams();
+    
+    if (product.productType) {
+      queryParams.set('type', product.productType);
+    }
+    
+    if (product.category) {
+      queryParams.set('category', product.category);
+    }
+    
+    if (product.subcategory) {
+      queryParams.set('subcategory', product.subcategory);
+    }
+    
+    const queryString = queryParams.toString();
+    const redirectUrl = queryString ? `/products?${queryString}` : '/products';
+    
+    router.push(redirectUrl);
   };
 
   const renderRatingStars = (rating) => {
@@ -194,7 +295,6 @@ const BestSellers = () => {
         ref={scrollRef}
         className="flex overflow-x-auto gap-4 px-4 pb-6 scrollbar-hide snap-x snap-mandatory scroll-smooth"
       >
-       
         {products.map((item) => (
           <div 
             key={item._id} 
@@ -328,11 +428,25 @@ const BestSellers = () => {
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-3 text-gray-400">
-                  <FaRegHeart 
-                    className="text-lg cursor-pointer hover:text-[#d41d40] transition-colors" 
-                    onClick={(e) => handleWishlistClick(e, item._id)}
-                  />
+                <div className="flex items-center gap-3">
+                  {/* Like button with count */}
+                  <div className="flex items-center gap-1  p-1">
+                    <button
+                      onClick={(e) => handleWishlistClick(e, item._id)}
+                      className="text-gray-400 hover:text-[#d41d40] transition-colors hover:cursor-pointer"
+                    >
+                      {likedProducts[item._id] ? (
+                        <FaHeart className="text-lg text-[#d41d40] overflow-hidden" />
+                      ) : (
+                        <FaRegHeart className="text-lg" />
+                      )}
+                    </button>
+                    {likeCounts[item._id] > 0 && (
+                      <span className="text-xs text-gray-500 ml-2">
+                        {likeCounts[item._id]}
+                      </span>
+                    )}
+                  </div>
                   <FaShareAlt 
                     className="text-md cursor-pointer hover:text-black transition-colors" 
                     onClick={(e) => handleShareClick(e, item)}

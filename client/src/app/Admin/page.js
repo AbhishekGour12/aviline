@@ -20,6 +20,8 @@ import {
   FaBoxes
 } from 'react-icons/fa';
 import ProductManagement from '../Components/Admin/ProductManagement';
+import HeroCategoryManagement from '../Components/Admin/HeroCategory';
+import CarouselManagement from '../Components/Admin/CarouselManagement';
 
 // Dummy data
 const dummyData = {
@@ -358,6 +360,8 @@ const AdminDashboard = () => {
       searchTerm={searchTerm} 
       onDeleteProduct={deleteProduct}
     />,
+    category: <HeroCategoryManagement/>,
+    carousel: <CarouselManagement/>
    
   };
 

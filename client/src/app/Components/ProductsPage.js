@@ -1,4 +1,4 @@
-// src/app/products/page.jsx - Corrected version without FaFabric
+// src/app/products/page.jsx - Updated with like/unlike and WhatsApp share
 
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
@@ -21,7 +21,8 @@ import {
   FaTag,
   FaRulerCombined,
   FaPalette,
-  FaLayerGroup
+  FaLayerGroup,
+  FaWhatsapp
 } from 'react-icons/fa';
 
 import { ProductApi } from '../lib/ProductApi';
@@ -144,8 +145,8 @@ const ColorCircle = ({ color, hexCode, selected, onClick }) => {
   );
 };
 
-// Product Card Component
-const ProductCard = ({ product, onWishlistToggle, isWishlisted }) => {
+// Product Card Component with like/unlike and WhatsApp share
+const ProductCard = ({ product, onWishlistToggle, isWishlisted, likeCount }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const router = useRouter();
@@ -164,6 +165,14 @@ const ProductCard = ({ product, onWishlistToggle, isWishlisted }) => {
       stars.push(<FaStarHalfAlt key="half" className="text-amber-400 text-xs" />);
     }
     return stars;
+  };
+
+  const handleWhatsAppShare = (e) => {
+    e.stopPropagation();
+    const productUrl = `${window.location.origin}/product/${product._id}`;
+    const message = `Check out this amazing product: ${product.name}\nPrice: ₹${product.discountedPrice || product.price}\n\n${productUrl}`;
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
   };
   
   return (
@@ -203,20 +212,39 @@ const ProductCard = ({ product, onWishlistToggle, isWishlisted }) => {
           </div>
         )}
         
-        {/* Wishlist Button */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onWishlistToggle(product._id);
-          }}
-          className="absolute top-3 right-3 w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md hover:shadow-lg transition-all"
-        >
-          {isWishlisted ? (
-            <FaHeart className="text-red-500 text-sm" />
-          ) : (
-            <FaRegHeart className="text-gray-600 text-sm hover:text-red-500 transition-colors" />
-          )}
-        </button>
+        {/* Action Buttons */}
+        <div className="absolute top-3 right-3 flex flex-col gap-2">
+          {/* Wishlist Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onWishlistToggle(product._id);
+            }}
+            className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md hover:shadow-lg transition-all"
+          >
+            {isWishlisted ? (
+              <FaHeart className="text-red-500 text-sm" />
+            ) : (
+              <FaRegHeart className="text-gray-600 text-sm hover:text-red-500 transition-colors" />
+            )}
+          </button>
+          
+          {/* WhatsApp Share Button */}
+          <button
+            onClick={handleWhatsAppShare}
+            className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md hover:shadow-lg transition-all hover:bg-[#25D366] hover:text-white group hover:cursor-pointer"
+          >
+            <FaWhatsapp className="text-gray-600 text-sm  transition-colors" />
+          </button>
+        </div>
+        
+        {/* Like Count Badge */}
+        {likeCount > 0 && (
+          <div className="absolute bottom-3 left-3 bg-black/50 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full flex items-center gap-1  hover:cursor-pointer">
+            <FaHeart className="text-red-500 text-[10px]" />
+            <span>{likeCount}</span>
+          </div>
+        )}
         
         {/* Quick View Button */}
         <motion.div
@@ -307,7 +335,9 @@ const ProductsPage = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [wishlist, setWishlist] = useState([]);
+  const [wishlist, setWishlist] = useState({});
+  const [likeCounts, setLikeCounts] = useState({});
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   
   // Filter Options State
   const [filterOptions, setFilterOptions] = useState({
@@ -337,6 +367,12 @@ const ProductsPage = () => {
   const [sortOrder, setSortOrder] = useState('desc');
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
   const [loadingFilters, setLoadingFilters] = useState(true);
+  
+  // Check login status
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    setIsLoggedIn(!!token);
+  }, []);
   
   // Fetch filter options on mount
   useEffect(() => {
@@ -394,6 +430,12 @@ const ProductsPage = () => {
       setProducts(response.products);
       setTotalCount(response.totalCount);
       setTotalPages(response.totalPages);
+      
+      // Fetch like status and counts for the fetched products
+      if (response.products.length > 0) {
+        await fetchProductsLikeStatus(response.products);
+        await fetchProductsLikeCounts(response.products);
+      }
     } catch (error) {
       console.error('Failed to fetch products:', error);
     } finally {
@@ -401,9 +443,111 @@ const ProductsPage = () => {
     }
   }, [filters, currentPage, sortBy, sortOrder]);
   
+  // Fetch like status for products
+  const fetchProductsLikeStatus = async (productsList) => {
+    if (!isLoggedIn) return;
+    
+    try {
+      const likeStatusPromises = productsList.map(async (product) => {
+        try {
+          const response = await ProductApi.checkUserInterest(product._id);
+          return { productId: product._id, isLiked: response.isLiked };
+        } catch (error) {
+          console.error(`Failed to fetch like status for product ${product._id}:`, error);
+          return { productId: product._id, isLiked: false };
+        }
+      });
+      
+      const results = await Promise.all(likeStatusPromises);
+      const likedMap = {};
+      results.forEach(({ productId, isLiked }) => {
+        likedMap[productId] = isLiked;
+      });
+      setWishlist(likedMap);
+    } catch (error) {
+      console.error('Error fetching like statuses:', error);
+    }
+  };
+  
+  // Fetch like counts for products
+  const fetchProductsLikeCounts = async (productsList) => {
+    try {
+      const countPromises = productsList.map(async (product) => {
+        try {
+          const response = await ProductApi.getProductLikesCount(product._id);
+          return { productId: product._id, count: response.count };
+        } catch (error) {
+          console.error(`Failed to fetch like count for product ${product._id}:`, error);
+          return { productId: product._id, count: 0 };
+        }
+      });
+      
+      const results = await Promise.all(countPromises);
+      const countsMap = {};
+      results.forEach(({ productId, count }) => {
+        countsMap[productId] = count;
+      });
+      setLikeCounts(countsMap);
+    } catch (error) {
+      console.error('Error fetching like counts:', error);
+    }
+  };
+  
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+  
+  // Handle wishlist toggle
+  const handleWishlistToggle = async (productId) => {
+    if (!isLoggedIn) {
+      // Redirect to login or show login modal
+      if (confirm('Please login to add items to your wishlist')) {
+        router.push('/login');
+      }
+      return;
+    }
+    
+    const isCurrentlyLiked = wishlist[productId] || false;
+    
+    // Optimistic update
+    setWishlist(prev => ({
+      ...prev,
+      [productId]: !isCurrentlyLiked
+    }));
+    
+    // Optimistic update for count
+    setLikeCounts(prev => ({
+      ...prev,
+      [productId]: isCurrentlyLiked 
+        ? (prev[productId] || 0) - 1 
+        : (prev[productId] || 0) + 1
+    }));
+    
+    try {
+      if (!isCurrentlyLiked) {
+        await ProductApi.addUserInterest(productId);
+      } else {
+        await ProductApi.removeUserInterest(productId);
+      }
+    } catch (error) {
+      console.error('Error toggling wishlist:', error);
+      
+      // Revert on error
+      setWishlist(prev => ({
+        ...prev,
+        [productId]: isCurrentlyLiked
+      }));
+      
+      setLikeCounts(prev => ({
+        ...prev,
+        [productId]: isCurrentlyLiked 
+          ? (prev[productId] || 0) + 1 
+          : (prev[productId] || 0) - 1
+      }));
+      
+      alert('Failed to update wishlist. Please try again.');
+    }
+  };
   
   // Handle filter change
   const handleFilterChange = (key, value) => {
@@ -724,12 +868,9 @@ const ProductsPage = () => {
                     <ProductCard
                       key={product._id}
                       product={product}
-                      onWishlistToggle={(id) => {
-                        setWishlist(prev =>
-                          prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-                        );
-                      }}
-                      isWishlisted={wishlist.includes(product._id)}
+                      onWishlistToggle={handleWishlistToggle}
+                      isWishlisted={wishlist[product._id] || false}
+                      likeCount={likeCounts[product._id] || 0}
                     />
                   ))}
                 </div>

@@ -741,7 +741,44 @@ export const ProductApi = {
       const errorMessage = error.response?.data?.message || 'Failed to fetch category hierarchy';
       throw new Error(errorMessage);
     }
-  }
+  },
+  // User Interest methods
+ addUserInterest: async (productId) => {
+  const response = await api.post('/user-interests', {productId: productId},{
+  
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem('token')}`
+    },
+    
+  });
+  return response.data;
+},
+
+ removeUserInterest: async (productId) => {
+  const response = await api.delete(`/user-interests/${productId}`, {
+    
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('token')}`
+    }
+  });
+  return response.data;
+},
+
+checkUserInterest: async (productId) => {
+  const response = await api.get(`/user-interests/${productId}`, {
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('token')}`
+    }
+  });
+  return response.data;
+},
+
+getProductLikesCount: async (productId) => {
+  const response = await api.get(`/user-interests/likeCount/${productId}`);
+  return response.data;
+},
+
 };
 
 export default ProductApi;

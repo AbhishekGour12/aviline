@@ -13,12 +13,15 @@ import {
   FaCog,
   FaSignOutAlt,
   FaTimes,
+  FaAdversal,
+  FaImages,
 } from 'react-icons/fa';
 
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: FaChartLine },
   { id: 'products', label: 'Products', icon: FaShoppingBag },
-  
+  { id: 'category', label: 'Category', icon: FaAdversal },
+  { id: 'carousel', label: 'Carousel', icon: FaImages }
 ];
 
 const Sidebar = ({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen }) => {
